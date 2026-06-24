@@ -44,6 +44,83 @@ export default function ClientDashboard({ token, user, onLogout }) {
   const [selectedDocForAnalysis, setSelectedDocForAnalysis] = useState(null);
   const [selectedDocType, setSelectedDocType] = useState('lease');
 
+  // إضافات المرحلة الرابعة: مكتبة القوانين وغرفة الاستشارة الافتراضية
+  const [lawsList, setLawsList] = useState([]);
+  const [lawSearchQuery, setLawSearchQuery] = useState('');
+  const [selectedLawBook, setSelectedLawBook] = useState('');
+  
+  const [activeSessionConsultation, setActiveSessionConsultation] = useState(null);
+  const [sessionTimer, setSessionTimer] = useState(1800); // 30 mins
+  const [micActive, setMicActive] = useState(true);
+  const [videoActive, setVideoActive] = useState(true);
+  const [sharedSessionNotes, setSharedSessionNotes] = useState('');
+
+  const fetchLaws = async (query = '', lawName = '') => {
+    try {
+      const url = new URL(`${API_BASE}/laws`);
+      if (query) url.searchParams.append('q', query);
+      if (lawName) url.searchParams.append('law_name', lawName);
+      
+      const res = await fetch(url.toString(), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLawsList(data);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'laws') {
+      fetchLaws(lawSearchQuery, selectedLawBook);
+    }
+  }, [activeTab, lawSearchQuery, selectedLawBook]);
+
+  useEffect(() => {
+    let interval = null;
+    if (activeTab === 'virtual-session' && sessionTimer > 0) {
+      interval = setInterval(() => {
+        setSessionTimer(prev => prev - 1);
+      }, 1000);
+    } else if (sessionTimer === 0) {
+      clearInterval(interval);
+    }
+    return () => clearInterval(interval);
+  }, [activeTab, sessionTimer]);
+
+  const formatTimer = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleUpdateSessionNotes = async () => {
+    if (!activeSessionConsultation) return;
+    try {
+      const res = await fetch(`${API_BASE}/consultations/${activeSessionConsultation.id}/session-notes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ session_notes: sharedSessionNotes })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setActiveSessionConsultation(updated);
+        setStatusMessage('تم تحديث وحفظ الملاحظات المشتركة للاستشارة.');
+        fetchConsultations();
+      } else {
+        setErrorMessage('فشل تحديث الملاحظات.');
+      }
+    } catch (err) {
+      setErrorMessage('حدث خطأ في الاتصال بالخادم.');
+    }
+  };
+
   useEffect(() => {
     fetchCases();
     fetchLawyers();
@@ -453,7 +530,8 @@ export default function ClientDashboard({ token, user, onLogout }) {
           <button className={`btn ${activeTab === 'search' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('search'); setSelectedCase(null); }}>🔍 ابحث عن محامٍ</button>
           <button className={`btn ${activeTab === 'consultations' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('consultations'); setSelectedCase(null); }}>📅 مواعيدي واستشاراتي</button>
           <button className={`btn ${activeTab === 'billing' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('billing'); setSelectedCase(null); }}>💳 الفواتير والمدفوعات</button>
-          <button className={`btn ${activeTab === 'ai' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('ai'); setSelectedCase(null); }}>🧠 المساعد القانوني الذكي</button>
+          <button className={`btn ${activeTab === 'ai' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('ai'); setSelectedCase(null); }}>🧠 المساعد الذكي</button>
+          <button className={`btn ${activeTab === 'laws' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('laws'); setSelectedCase(null); }}>⚖️ المكتبة القانونية</button>
         </div>
         <div style={{ marginTop: 'auto' }}>
           <p style={{ fontSize: '0.9rem', marginBottom: '10px' }}>مرحباً، {user.full_name}</p>
@@ -468,7 +546,9 @@ export default function ClientDashboard({ token, user, onLogout }) {
             {activeTab === 'overview' ? '💼 لوحة المتابعة وقضايا المحكمة' : 
              activeTab === 'search' ? '🔍 دليل مكاتب الاستشارة المعتمدة' :
              activeTab === 'consultations' ? '📅 أجندة المواعيد والاستشارات' : 
-             activeTab === 'billing' ? '💳 المالية والفواتير والوثائق' : '🧠 المساعد القانوني الذكي لمنصة أروى'}
+             activeTab === 'billing' ? '💳 المالية والفواتير والوثائق' : 
+             activeTab === 'laws' ? '⚖️ مكتبة القوانين والتشريعات اليمنية' :
+             activeTab === 'virtual-session' ? '🎥 غرفة الاستشارة الافتراضية المباشرة' : '🧠 المساعد القانوني الذكي لمنصة أروى'}
           </h3>
           
           <div className="header-actions">
@@ -692,10 +772,24 @@ export default function ClientDashboard({ token, user, onLogout }) {
                     <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>📅 الموعد: {new Date(c.date).toLocaleString('ar-EG')}</p>
                     {c.notes && <p style={{ marginTop: '5px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>📝 ملاحظتي: {c.notes}</p>}
                   </div>
-                  <div>
-                    <span className={`badge ${c.status === 'accepted' ? 'badge-success' : c.status === 'pending' ? 'badge-warning' : 'badge-danger'}`}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                    <span className={`badge ${c.status === 'accepted' ? 'badge-success' : c.status === 'completed' ? 'badge-success' : c.status === 'pending' ? 'badge-warning' : 'badge-danger'}`}>
                       {c.status === 'accepted' ? 'تم القبول' : c.status === 'pending' ? 'قيد المراجعة' : c.status === 'completed' ? 'منتهية' : 'مرفوضة'}
                     </span>
+                    {(c.status === 'accepted' || c.status === 'completed') && (
+                      <button 
+                        className="btn btn-primary" 
+                        style={{ padding: '4px 8px', fontSize: '0.75rem', marginTop: '4px' }}
+                        onClick={() => {
+                          setActiveSessionConsultation(c);
+                          setSharedSessionNotes(c.session_notes || '');
+                          setSessionTimer(1800);
+                          setActiveTab('virtual-session');
+                        }}
+                      >
+                        🎥 دخول غرفة الاستشارة
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -821,6 +915,177 @@ export default function ClientDashboard({ token, user, onLogout }) {
                 {aiLoading ? 'جاري الإرسال...' : 'إرسال الاستفسار ⚡'}
               </button>
             </form>
+          </div>
+        )}
+
+        {/* 6. المكتبة القانونية */}
+        {activeTab === 'laws' && !selectedCase && (
+          <div className="laws-library-container">
+            <h1>⚖️ مكتبة القوانين والتشريعات اليمنية</h1>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
+              تصفح وابحث في القوانين المدنية والتجارية والجنائية المعمول بها في الجمهورية اليمنية.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
+              <input 
+                type="text" 
+                value={lawSearchQuery} 
+                onChange={(e) => setLawSearchQuery(e.target.value)} 
+                className="form-input" 
+                placeholder="ابحث برقم المادة أو كلمة مفتاحية (مثل: إيجار، تضامن، عقوبة)..." 
+                style={{ flex: 2 }}
+              />
+              <select 
+                value={selectedLawBook} 
+                onChange={(e) => setSelectedLawBook(e.target.value)} 
+                className="form-input" 
+                style={{ flex: 1 }}
+              >
+                <option value="">كل القوانين</option>
+                <option value="القانون المدني اليمني">القانون المدني اليمني</option>
+                <option value="القانون التجاري اليمني">القانون التجاري اليمني</option>
+                <option value="قانون العقوبات اليمني">قانون العقوبات اليمني</option>
+                <option value="قانون الأحوال الشخصية اليمني">قانون الأحوال الشخصية اليمني</option>
+              </select>
+            </div>
+
+            <div className="laws-list">
+              {lawsList.map((law, idx) => (
+                <div key={law.id || idx} className="glass-panel law-card-item" style={{ padding: '20px', marginBottom: '15px', borderRight: '4px solid var(--accent-gold)', direction: 'rtl', textAlign: 'right' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <span className="badge badge-success" style={{ background: 'rgba(197, 160, 89, 0.1)', color: 'var(--accent-gold)' }}>{law.law_name}</span>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>{law.chapter || ''}</span>
+                  </div>
+                  <h3 style={{ color: 'var(--text-primary)', marginBottom: '8px' }}>{law.article_number}</h3>
+                  <p style={{ fontSize: '0.95rem', color: 'var(--text-secondary)', lineHeight: '1.6', background: 'rgba(255,255,255,0.01)', padding: '12px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                    {law.content}
+                  </p>
+                  {law.keywords && (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' }}>
+                      {law.keywords.split(' ').map((kw, kidx) => (
+                        <span key={kidx} className="badge" style={{ fontSize: '0.7rem', padding: '2px 6px', background: 'rgba(255,255,255,0.03)' }}>#{kw}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+              {lawsList.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                  <h3>لا توجد مواد تطابق بحثك حالياً</h3>
+                  <p style={{ fontSize: '0.9rem', marginTop: '5px' }}>جرب كتابة كلمات مثل "إيجار" أو "شيك" أو اختر قانوناً محدداً للتصفح.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* غرفة الاستشارة الافتراضية */}
+        {activeTab === 'virtual-session' && activeSessionConsultation && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2>🎥 غرفة الاستشارة الافتراضية النشطة</h2>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => {
+                  setActiveTab('consultations');
+                  setActiveSessionConsultation(null);
+                }}
+              >
+                🔙 مغادرة الغرفة والعودة
+              </button>
+            </div>
+            
+            <div className="virtual-call-grid">
+              {/* شاشات الفيديو والمؤقت */}
+              <div className="video-feeds-container">
+                <div className="session-timer-box">
+                  ⏱️ المتبقي من وقت الاستشارة: {formatTimer(sessionTimer)}
+                </div>
+                
+                {/* شاشة فيديو الطرف الآخر (المحامي) */}
+                <div className="video-feed-mock remote">
+                  <div className="video-avatar">⚖️</div>
+                  <span className="video-feed-label">👤 أ. {activeSessionConsultation.lawyer_name} (المحامي)</span>
+                </div>
+                
+                {/* شاشة فيديو المستخدم الحالي (الموكل) */}
+                <div className="video-feed-mock">
+                  {videoActive ? (
+                    <div className="video-avatar" style={{ background: 'rgba(33, 150, 243, 0.15)', borderColor: 'var(--accent-blue)' }}>👤</div>
+                  ) : (
+                    <div style={{ color: 'var(--text-secondary)' }}>الكاميرا مغلقة</div>
+                  )}
+                  {!micActive && <span className="video-feed-overlay-muted">🔇 الميكروفون صامت</span>}
+                  <span className="video-feed-label">👤 أنت (الموكل)</span>
+                </div>
+                
+                {/* أزرار التحكم بالاتصال */}
+                <div className="video-controls-bar">
+                  <button className={`btn-circle ${!micActive ? 'active-off' : ''}`} onClick={() => setMicActive(!micActive)}>
+                    {micActive ? '🎙️' : '🔇'}
+                  </button>
+                  <button className={`btn-circle ${!videoActive ? 'active-off' : ''}`} onClick={() => setVideoActive(!videoActive)}>
+                    {videoActive ? '📷' : '🚫'}
+                  </button>
+                  <button 
+                    className="btn btn-danger" 
+                    style={{ borderRadius: '24px', padding: '0 20px', fontSize: '0.85rem' }} 
+                    onClick={() => {
+                      setActiveTab('consultations');
+                      setActiveSessionConsultation(null);
+                    }}
+                  >
+                    🔴 إنهاء الاستشارة
+                  </button>
+                </div>
+              </div>
+
+              {/* المفكرة المشتركة */}
+              <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }} id="printable-recommendations-card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3>📝 مفكرة التوصيات والملاحظات المشتركة</h3>
+                  <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }} onClick={() => window.print()}>
+                    🖨️ طباعة الملاحظات
+                  </button>
+                </div>
+                
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  الملاحظات المدونة بالأسفل يتم مشاركتها وحفظها بينك وبين المحامي لحظياً.
+                </p>
+                
+                <textarea 
+                  value={sharedSessionNotes}
+                  onChange={(e) => setSharedSessionNotes(e.target.value)}
+                  className="form-input" 
+                  rows="10" 
+                  placeholder="يمكنك كتابة الاتفاقيات، البنود والتوصيات القانونية المشتركة هنا..."
+                  style={{ flex: 1, fontFamily: 'inherit', resize: 'none', lineHeight: '1.6' }}
+                ></textarea>
+                
+                <button className="btn btn-primary" onClick={handleUpdateSessionNotes} style={{ width: '100%' }}>
+                  💾 حفظ وتحديث الملاحظات المشتركة
+                </button>
+              </div>
+            </div>
+
+            {/* نسخة الطباعة المخفية */}
+            <div className="printable-session-recommendations" style={{ display: 'none' }}>
+              <div style={{ textAlign: 'center', borderBottom: '2px solid #c5a059', paddingBottom: '15px', marginBottom: '20px' }}>
+                <h2>منصة أروى القانونية الرقمية ⚖️</h2>
+                <h3>توصيات وملاحظات جلسة الاستشارة الافتراضية</h3>
+              </div>
+              <p><strong>تاريخ الجلسة:</strong> {new Date(activeSessionConsultation.date).toLocaleString('ar-YE')}</p>
+              <p><strong>المحامي الوكيل:</strong> أ. {activeSessionConsultation.lawyer_name}</p>
+              <p><strong>الموكل:</strong> {user.full_name}</p>
+              <hr style={{ border: '1px solid #eee', margin: '20px 0' }} />
+              <h4>📋 الملاحظات والتوصيات المتفق عليها:</h4>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', background: '#f9f9f9', padding: '20px', borderRadius: '8px', border: '1px solid #ddd' }}>
+                {sharedSessionNotes || 'لا توجد ملاحظات مدونة.'}
+              </div>
+              <div style={{ marginTop: '50px', textAlign: 'left', fontSize: '0.9rem', color: '#666' }}>
+                سند موثق إلكترونياً وصادر عن منصة أروى
+              </div>
+            </div>
           </div>
         )}
 

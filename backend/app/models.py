@@ -109,6 +109,7 @@ class Consultation(Base):
     date = Column(DateTime, nullable=False)
     status = Column(String(50), nullable=False, default="pending")  # pending, accepted, rejected, completed
     notes = Column(Text, nullable=True)
+    session_notes = Column(Text, nullable=True)
 
     # Relationships
     lawyer = relationship("Lawyer", back_populates="consultations")
@@ -163,3 +164,14 @@ class AIChatMessage(Base):
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id])
+
+
+class LawBook(Base):
+    __tablename__ = "law_books"
+
+    id = Column(String(36), primary_key=True, default=generate_uuid)
+    law_name = Column(String(150), nullable=False)
+    chapter = Column(String(150), nullable=True)
+    article_number = Column(String(50), nullable=False)
+    content = Column(Text, nullable=False)
+    keywords = Column(String(255), nullable=True)

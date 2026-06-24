@@ -946,3 +946,227 @@ body {
   color: var(--accent-gold);
 }
 
+
+/* ==================== إضافات المرحلة الرابعة: التحليلات وغرفة الاستشارات الافتراضية ==================== */
+
+/* المخططات البيانية بـ CSS */
+.chart-container-flex {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  height: 250px;
+  padding: 24px 16px;
+  background: rgba(18, 24, 38, 0.45);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  margin-top: 20px;
+}
+
+.chart-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 70px;
+  height: 100%;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.chart-bar {
+  width: 100%;
+  max-width: 36px;
+  background: linear-gradient(to top, var(--accent-gold), rgba(197, 160, 89, 0.3));
+  border-radius: 6px 6px 0 0;
+  transition: all 0.3s ease-in-out;
+  position: relative;
+  box-shadow: 0 0 12px rgba(197, 160, 89, 0.15);
+}
+
+.chart-bar:hover {
+  background: var(--accent-gold);
+  box-shadow: 0 0 20px rgba(197, 160, 89, 0.5);
+  transform: scaleY(1.02);
+}
+
+.chart-bar-value {
+  font-size: 0.72rem;
+  color: var(--accent-gold);
+  font-weight: bold;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.chart-bar-label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.status-progress-track {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.status-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease-in-out;
+}
+
+.status-progress-fill.bar-blue {
+  background: var(--accent-blue);
+  box-shadow: 0 0 8px var(--accent-blue);
+}
+
+.status-progress-fill.bar-green {
+  background: var(--success);
+  box-shadow: 0 0 8px var(--success);
+}
+
+.status-progress-fill.bar-gold {
+  background: var(--accent-gold);
+  box-shadow: 0 0 8px var(--accent-gold);
+}
+
+/* غرفة الاستشارة الافتراضية */
+.virtual-call-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.video-feeds-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.video-feed-mock {
+  background: #0d121f;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  aspect-ratio: 16/9;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.video-feed-mock.remote {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 15px rgba(197, 160, 89, 0.15);
+}
+
+.video-avatar {
+  width: 80px;
+  height: 80px;
+  background: rgba(197, 160, 89, 0.15);
+  border: 2px solid var(--accent-gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.2rem;
+  box-shadow: 0 0 15px rgba(197, 160, 89, 0.3);
+  animation: pulseAvatar 2s infinite ease-in-out;
+}
+
+@keyframes pulseAvatar {
+  0% { transform: scale(1); box-shadow: 0 0 15px rgba(197, 160, 89, 0.3); }
+  50% { transform: scale(1.05); box-shadow: 0 0 25px rgba(197, 160, 89, 0.5); }
+  100% { transform: scale(1); box-shadow: 0 0 15px rgba(197, 160, 89, 0.3); }
+}
+
+.video-feed-label {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  color: white;
+  z-index: 5;
+}
+
+.video-feed-overlay-muted {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(239, 83, 80, 0.8);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  color: white;
+  z-index: 5;
+}
+
+.video-controls-bar {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.btn-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  border: 1px solid var(--border-color);
+  background: rgba(255,255,255,0.03);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-circle:hover {
+  background: rgba(197, 160, 89, 0.2);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.btn-circle.active-off {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: white;
+}
+
+.session-timer-box {
+  background: rgba(239, 83, 80, 0.15);
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: var(--danger);
+  font-family: monospace;
+}
+
+/* طباعة توصيات الجلسة الافتراضية */
+@media print {
+  .printable-session-recommendations {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    background: white !important;
+    color: black !important;
+    padding: 40px !important;
+    direction: rtl !important;
+    display: block !important;
+    z-index: 99999 !important;
+  }
+}
+
+

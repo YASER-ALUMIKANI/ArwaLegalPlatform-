@@ -134,6 +134,7 @@ class ConsultationResponse(BaseModel):
     date: datetime
     status: str
     notes: Optional[str] = None
+    session_notes: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -203,3 +204,43 @@ class AIChatMessageResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ConsultationSessionNotesUpdate(BaseModel):
+    session_notes: str
+
+
+class LawBookResponse(BaseModel):
+    id: str
+    law_name: str
+    chapter: Optional[str] = None
+    article_number: str
+    content: str
+    keywords: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+
+class MonthRevenueItem(BaseModel):
+    month: str
+    amount: float
+
+
+class CaseStatusItem(BaseModel):
+    status: str
+    count: int
+
+
+class LawyerAnalyticsResponse(BaseModel):
+    total_cases: int
+    active_cases: int
+    closed_cases: int
+    pending_cases: int
+    total_consultations: int
+    pending_consultations: int
+    accepted_consultations: int
+    collected_revenue: float
+    pending_revenue: float
+    monthly_revenues: List[MonthRevenueItem]
+    case_status_distribution: List[CaseStatusItem]

@@ -1083,3 +1083,128 @@ def analyze_document(
     db.refresh(doc)
     
     return doc
+
+
+@app.get("/api/lawyer/analytics", response_model=schemas.LawyerAnalyticsResponse)
+def get_lawyer_analytics(
+    current_user: models.User = Depends(get_user_by_auth_header),
+    db: Session = Depends(get_db)
+):
+    if current_user.role != "lawyer":
+        raise HTTPException(status_code=403, detail="صلاحية الوصول للتحليلات مخصصة للمحامين فقط.")
+        
+    # Cases stats
+    cases = db.query(models.Case).filter(models.Case.lawyer_id == current_user.id).all()
+    total_cases = len(cases)
+    active_cases = len([c for c in cases if c.status == "active"])
+    closed_cases = len([c for c in cases if c.status == "closed"])
+    pending_cases = len([c for c in cases if c.status == "pending"])
+    
+    # Consultations stats
+    consultations = db.query(models.Consultation).filter(models.Consultation.lawyer_id == current_user.id).all()
+    total_consultations = len(consultations)
+    pending_consultations = len([c for c in consultations if c.status == "pending"])
+    accepted_consultations = len([c for c in consultations if c.status == "accepted" or c.status == "completed"])
+    
+    # Invoices revenue stats
+    case_invoices = db.query(models.Invoice).join(models.Case).filter(models.Case.lawyer_id == current_user.id).all()
+    consult_invoices = db.query(models.Invoice).join(models.Consultation).filter(models.Consultation.lawyer_id == current_user.id).all()
+    all_invoices = list(set(case_invoices + consult_invoices))
+    
+    collected_revenue = sum(float(inv.amount) for inv in all_invoices if inv.status == "paid")
+    pending_revenue = sum(float(inv.amount) for inv in all_invoices if inv.status == "unpaid")
+    
+    # Compute monthly revenues for the last 6 months
+    arabic_months = {
+        1: "يناير", 2: "فبراير", 3: "مارس", 4: "أبريل", 5: "مايو", 6: "يونيو",
+        7: "يوليو", 8: "أغسطس", 9: "سبتمبر", 10: "أكتوبر", 11: "نوفمبر", 12: "ديسمبر"
+    }
+    
+    monthly_data = {}
+    now = datetime.utcnow()
+    for i in range(5, -1, -1):
+        target_date = now - timedelta(days=30 * i)
+        month_num = target_date.month
+        month_name = arabic_months[month_num]
+        monthly_data[month_name] = 0.0
+        
+    for inv in all_invoices:
+        if inv.status == "paid" and inv.paid_at:
+            month_name = arabic_months[inv.paid_at.month]
+            if month_name in monthly_data:
+                monthly_data[month_name] += float(inv.amount)
+                
+    monthly_revenues = [{"month": m, "amount": amt} for m, amt in monthly_data.items()]
+    
+    case_status_distribution = [
+        {"status": "نشطة", "count": active_cases},
+        {"status": "مغلقة", "count": closed_cases},
+        {"status": "معلقة", "count": pending_cases}
+    ]
+    
+    return {
+        "total_cases": total_cases,
+        "active_cases": active_cases,
+        "closed_cases": closed_cases,
+        "pending_cases": pending_cases,
+        "total_consultations": total_consultations,
+        "pending_consultations": pending_consultations,
+        "accepted_consultations": accepted_consultations,
+        "collected_revenue": collected_revenue,
+        "pending_revenue": pending_revenue,
+        "monthly_revenues": monthly_revenues,
+        "case_status_distribution": case_status_distribution
+    }
+
+
+@app.get("/api/laws", response_model=List[schemas.LawBookResponse])
+def search_laws(
+    q: Optional[str] = None,
+    law_name: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_user_by_auth_header)
+):
+    query = db.query(models.LawBook)
+    if law_name:
+        query = query.filter(models.LawBook.law_name == law_name)
+        
+    if q:
+        search_filter = f"%{q}%"
+        query = query.filter(
+            (models.LawBook.content.like(search_filter)) | 
+            (models.LawBook.keywords.like(search_filter)) |
+            (models.LawBook.article_number.like(search_filter))
+        )
+        
+    return query.limit(50).all()
+
+
+@app.post("/api/consultations/{consult_id}/session-notes", response_model=schemas.ConsultationResponse)
+def update_consultation_session_notes(
+    consult_id: str,
+    notes_in: schemas.ConsultationSessionNotesUpdate,
+    current_user: models.User = Depends(get_user_by_auth_header),
+    db: Session = Depends(get_db)
+):
+    consult = db.query(models.Consultation).filter(models.Consultation.id == consult_id).first()
+    if not consult:
+        raise HTTPException(status_code=404, detail="الاستشارة غير موجودة.")
+        
+    if current_user.id != consult.lawyer_id and current_user.id != consult.client_id:
+        raise HTTPException(status_code=403, detail="ليس لديك الصلاحية لتعديل ملاحظات هذه الاستشارة.")
+        
+    consult.session_notes = notes_in.session_notes
+    db.commit()
+    db.refresh(consult)
+    
+    return {
+        "id": consult.id,
+        "client_id": consult.client_id,
+        "client_name": consult.client.full_name if consult.client else "",
+        "lawyer_id": consult.lawyer_id,
+        "lawyer_name": consult.lawyer.user.full_name if consult.lawyer and consult.lawyer.user else "",
+        "date": consult.date,
+        "status": consult.status,
+        "notes": consult.notes,
+        "session_notes": consult.session_notes
+    }
