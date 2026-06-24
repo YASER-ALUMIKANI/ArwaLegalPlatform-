@@ -1208,3 +1208,10 @@ def update_consultation_session_notes(
         "notes": consult.notes,
         "session_notes": consult.session_notes
     }
+
+# تركيب مجلد الواجهة الأمامية المبنية (React Dist) تلقائياً عند توفره (بيئة الإنتاج / Render)
+base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+frontend_dist_path = os.path.join(base_dir, "frontend", "dist")
+if os.path.exists(frontend_dist_path):
+    app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
+

@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import LawyerDashboard from './components/LawyerDashboard';
 import ClientDashboard from './components/ClientDashboard';
 
-const API_BASE = 'http://localhost:8000/api';
+const API_BASE = window.location.origin.includes('localhost') 
+  ? 'http://localhost:8000/api' 
+  : '/api';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('arwa_token') || '');
