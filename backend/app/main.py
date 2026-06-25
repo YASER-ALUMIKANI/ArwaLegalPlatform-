@@ -1,19 +1,80 @@
 import os
 import shutil
+import asyncio
 from datetime import datetime, timedelta
 from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-from .database import Base, engine, get_db
+from .database import Base, engine, get_db, SessionLocal
 from . import models, schemas
 
 # إنشاء الجداول عند التشغيل تلقائياً لتبسيط الإعداد
 Base.metadata.create_all(bind=engine)
+
+# ==================== إدارة اتصالات WebSocket ====================
+class ConnectionManager:
+    def __init__(self):
+        # خريطة تربط معرف المستخدم بقائمة من اتصالات الـ WebSocket النشطة
+        self.active_connections: dict[str, list[WebSocket]] = {}
+
+    async def connect(self, user_id: str, websocket: WebSocket):
+        await websocket.accept()
+        if user_id not in self.active_connections:
+            self.active_connections[user_id] = []
+        self.active_connections[user_id].append(websocket)
+
+    def disconnect(self, user_id: str, websocket: WebSocket):
+        if user_id in self.active_connections:
+            if websocket in self.active_connections[user_id]:
+                self.active_connections[user_id].remove(websocket)
+            if not self.active_connections[user_id]:
+                del self.active_connections[user_id]
+
+    async def send_personal_message(self, message: dict, user_id: str):
+        if user_id in self.active_connections:
+            for connection in self.active_connections[user_id]:
+                try:
+                    await connection.send_json(message)
+                except Exception:
+                    pass
+
+manager = ConnectionManager()
+
+class ConsultationRoomManager:
+    def __init__(self):
+        self.rooms: dict[str, dict[str, WebSocket]] = {}
+
+    async def connect(self, consult_id: str, user_id: str, websocket: WebSocket):
+        await websocket.accept()
+        self.rooms.setdefault(consult_id, {})[user_id] = websocket
+
+    def disconnect(self, consult_id: str, user_id: str):
+        if consult_id in self.rooms:
+            self.rooms[consult_id].pop(user_id, None)
+            if not self.rooms[consult_id]:
+                del self.rooms[consult_id]
+
+    async def send_to_peers(self, consult_id: str, sender_id: str, payload: dict):
+        for user_id, connection in self.rooms.get(consult_id, {}).items():
+            if user_id == sender_id:
+                continue
+            await connection.send_json({**payload, "sender_id": sender_id})
+
+session_manager = ConsultationRoomManager()
+loop = None
+
+def send_ws_notification(user_id: str, payload: dict):
+    global loop
+    if loop and loop.is_running():
+        asyncio.run_coroutine_threadsafe(
+            manager.send_personal_message(payload, user_id),
+            loop
+        )
 
 def trigger_notifications(db: Session, user_id: str, title: str, content: str):
     """
@@ -62,7 +123,64 @@ def trigger_notifications(db: Session, user_id: str, title: str, content: str):
     db.add(email_notif)
     db.flush()
 
+    # إرسال إشعار لحظي عبر WebSocket
+    send_ws_notification(user_id, {"type": "new_notification"})
+
 app = FastAPI(title="منصة أروى القانونية API")
+
+@app.on_event("startup")
+async def startup_event():
+    global loop
+    loop = asyncio.get_running_loop()
+
+@app.websocket("/ws/{user_id}")
+async def websocket_endpoint(websocket: WebSocket, user_id: str):
+    await manager.connect(user_id, websocket)
+    try:
+        while True:
+            # استقبال رسائل فارغة أو الحفاظ على الاتصال نشطاً
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(user_id, websocket)
+
+@app.websocket("/ws/consultations/{consult_id}")
+async def consultation_signaling_endpoint(websocket: WebSocket, consult_id: str):
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008)
+        return
+
+    db = SessionLocal()
+    current_user = None
+    try:
+        credentials_exception = HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="تعذر التحقق من الهوية.",
+        )
+        current_user = get_user_from_token(token, db, credentials_exception)
+        consult = db.query(models.Consultation).filter(models.Consultation.id == consult_id).first()
+        if not consult or current_user.id not in (consult.client_id, consult.lawyer_id):
+            await websocket.close(code=1008)
+            return
+
+        await session_manager.connect(consult_id, current_user.id, websocket)
+        await session_manager.send_to_peers(consult_id, current_user.id, {"type": "peer-joined"})
+
+        while True:
+            payload = await websocket.receive_json()
+            await session_manager.send_to_peers(consult_id, current_user.id, payload)
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        try:
+            await websocket.close(code=1011)
+        except Exception:
+            pass
+    finally:
+        if current_user:
+            session_manager.disconnect(consult_id, current_user.id)
+            await session_manager.send_to_peers(consult_id, current_user.id, {"type": "peer-left"})
+        db.close()
 
 # إعداد مجلد المرفقات المرفوعة
 UPLOAD_DIR = "uploads"
@@ -475,6 +593,10 @@ def send_message(case_id: str, message_in: schemas.MessageCreate, current_user: 
     db.add(message)
     db.commit()
     db.refresh(message)
+    
+    # إرسال تحديثات فورية عبر WebSocket لكلا الطرفين (المحامي والموكل)
+    send_ws_notification(case.client_id, {"type": "case_updated", "case_id": case_id})
+    send_ws_notification(case.lawyer_id, {"type": "case_updated", "case_id": case_id})
     
     return {
         "id": message.id,
@@ -1214,4 +1336,3 @@ base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 frontend_dist_path = os.path.join(base_dir, "frontend", "dist")
 if os.path.exists(frontend_dist_path):
     app.mount("/", StaticFiles(directory=frontend_dist_path, html=True), name="frontend")
-

@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import LawyerDashboard from './components/LawyerDashboard';
 import ClientDashboard from './components/ClientDashboard';
-
-const API_BASE = window.location.origin.includes('localhost') 
-  ? 'http://localhost:8000/api' 
-  : '/api';
+import { API_BASE } from './config/api';
 
 export default function App() {
   const [token, setToken] = useState(localStorage.getItem('arwa_token') || '');
@@ -53,7 +50,7 @@ export default function App() {
       } else {
         setErrorMessage(data.detail || 'فشل تسجيل الدخول، يرجى التحقق من المدخلات.');
       }
-    } catch (err) {
+    } catch {
       setErrorMessage('تعذر الاتصال بالخادم الخلفي.');
     }
   };
@@ -88,7 +85,7 @@ export default function App() {
       } else {
         setErrorMessage(data.detail || 'فشل إنشاء الحساب.');
       }
-    } catch (err) {
+    } catch {
       setErrorMessage('تعذر الاتصال بالخادم الخلفي.');
     }
   };
