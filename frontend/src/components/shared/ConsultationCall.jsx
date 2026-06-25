@@ -112,6 +112,16 @@ export default function ConsultationCall({
           const message = JSON.parse(event.data);
           if (message.sender_id === userId) return;
 
+          if (message.type === 'session-notes-updated') {
+            window.dispatchEvent(new CustomEvent('consultation-session-notes', {
+              detail: {
+                consultationId,
+                sessionNotes: message.session_notes || ''
+              }
+            }));
+            return;
+          }
+
           if (message.type === 'peer-joined') {
             setStatusText('الطرف الآخر متصل. جاري تشغيل الصوت...');
             await createOffer();

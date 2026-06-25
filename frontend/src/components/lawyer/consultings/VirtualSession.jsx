@@ -21,6 +21,23 @@ export default function VirtualSession({ user }) {
     return () => clearInterval(interval);
   }, [sessionTimer]);
 
+  useEffect(() => {
+    const handleSessionNotes = (event) => {
+      const { consultationId, sessionNotes } = event.detail || {};
+      if (!activeSessionConsultation || consultationId !== activeSessionConsultation.id) return;
+
+      const nextNotes = sessionNotes || '';
+      setSharedSessionNotes(nextNotes);
+      setActiveSessionConsultation({
+        ...activeSessionConsultation,
+        session_notes: nextNotes
+      });
+    };
+
+    window.addEventListener('consultation-session-notes', handleSessionNotes);
+    return () => window.removeEventListener('consultation-session-notes', handleSessionNotes);
+  }, [activeSessionConsultation, setActiveSessionConsultation]);
+
   const formatTimer = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -47,6 +64,14 @@ export default function VirtualSession({ user }) {
       id: activeSessionConsultation.id,
       notes: sharedSessionNotes
     });
+  };
+
+  const handlePrintSessionNotes = () => {
+    document.body.classList.add('printing-session-notes');
+    window.print();
+    window.setTimeout(() => {
+      document.body.classList.remove('printing-session-notes');
+    }, 500);
   };
 
   const handleLeaveRoom = () => {
@@ -93,7 +118,7 @@ export default function VirtualSession({ user }) {
         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }} id="printable-recommendations-card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3>مفكرة التوصيات والملاحظات المشتركة</h3>
-            <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }} onClick={() => window.print()}>
+            <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }} onClick={handlePrintSessionNotes}>
               طباعة الملاحظات
             </button>
           </div>

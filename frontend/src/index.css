@@ -1201,6 +1201,37 @@ body {
     display: block !important;
     z-index: 99999 !important;
   }
+
+  body.printing-session-notes .main-content,
+  body.printing-session-notes .main-content > * {
+    display: block !important;
+  }
+
+  body.printing-session-notes .main-content > * > * {
+    visibility: hidden !important;
+  }
+
+  body.printing-session-notes .printable-receipt-modal {
+    display: none !important;
+  }
+
+  body.printing-session-notes .printable-session-recommendations,
+  body.printing-session-notes .printable-session-recommendations * {
+    visibility: visible !important;
+  }
+
+  body.printing-session-notes .printable-session-recommendations {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    min-height: 100vh !important;
+    display: block !important;
+    background: white !important;
+    color: black !important;
+    padding: 40px !important;
+    direction: rtl !important;
+    z-index: 99999 !important;
+  }
 }
 
 /* ==================================================
@@ -1353,5 +1384,4 @@ body {
   color: #0b0f19 !important;
   box-shadow: 0 0 15px rgba(197, 160, 89, 0.3) !important;
 }
-
 

@@ -10,11 +10,11 @@ export default function ClientDashboard({ token, user, onLogout }) {
   const [consultations, setConsultations] = useState([]);
   const [invoices, setInvoices] = useState([]);
   
-  // ÙÙ„Ø§ØªØ± Ø§Ù„Ø¨Ø­Ø« Ø¹Ù† Ø§Ù„Ù…Ø­Ø§Ù…ÙŠÙ†
+  // فلاتر البحث عن المحامين
   const [searchQuery, setSearchQuery] = useState('');
   const [specFilter, setSpecFilter] = useState('');
   
-  // Ù†Ù…Ø§Ø°Ø¬ Ø§Ù„Ø¥Ø¯Ø®Ø§Ù„
+  // نماذج الإدخال
   const [showBookModal, setShowBookModal] = useState(false);
   const [selectedLawyer, setSelectedLawyer] = useState(null);
   const [bookDetails, setBookDetails] = useState({ date: '', notes: '' });
@@ -31,7 +31,7 @@ export default function ClientDashboard({ token, user, onLogout }) {
   const [statusMessage, setStatusMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
 
-  // Ø¥Ø¶Ø§ÙØ§Øª Ø§Ù„Ù…Ø±Ø­Ù„Ø© Ø§Ù„Ø«Ø§Ù„Ø«Ø©: Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª ÙˆØ§Ù„Ù…Ø³Ø§Ø¹Ø¯ ÙˆØ§Ù„ØªØ­Ù„ÙŠÙ„
+  // إضافات المرحلة الثالثة: الإشعارات والمساعد والتحليل
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
@@ -44,7 +44,7 @@ export default function ClientDashboard({ token, user, onLogout }) {
   const [selectedDocForAnalysis, setSelectedDocForAnalysis] = useState(null);
   const [selectedDocType, setSelectedDocType] = useState('lease');
 
-  // Ø¥Ø¶Ø§ÙØ§Øª Ø§Ù„Ù…Ø±Ø­Ù„Ø© Ø§Ù„Ø±Ø§Ø¨Ø¹Ø©: Ù…ÙƒØªØ¨Ø© Ø§Ù„Ù‚ÙˆØ§Ù†ÙŠÙ† ÙˆØºØ±ÙØ© Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø© Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠØ©
+  // إضافات المرحلة الرابعة: مكتبة القوانين وغرفة الاستشارة الافتراضية
   const [lawsList, setLawsList] = useState([]);
   const [lawSearchQuery, setLawSearchQuery] = useState('');
   const [selectedLawBook, setSelectedLawBook] = useState('');
@@ -53,7 +53,7 @@ export default function ClientDashboard({ token, user, onLogout }) {
   const [sessionTimer, setSessionTimer] = useState(1800); // 30 mins
   const [sharedSessionNotes, setSharedSessionNotes] = useState('');
 
-  // Ø¥Ø¶Ø§ÙØ§Øª Ø¥Ø¯Ø§Ø±Ø© Ø§Ù„Ù…Ù„ÙØ§Øª Ø§Ù„Ù…ØªÙ‚Ø¯Ù…Ø© (Ø§Ù„Ø³Ø­Ø¨ ÙˆØ§Ù„Ø¥ÙÙ„Ø§Øª)
+  // إضافات إدارة الملفات المتقدمة (السحب والإفلات)
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -94,6 +94,23 @@ export default function ClientDashboard({ token, user, onLogout }) {
     return () => clearInterval(interval);
   }, [activeTab, sessionTimer]);
 
+  useEffect(() => {
+    const handleSessionNotes = (event) => {
+      const { consultationId, sessionNotes } = event.detail || {};
+      if (!activeSessionConsultation || consultationId !== activeSessionConsultation.id) return;
+
+      const nextNotes = sessionNotes || '';
+      setSharedSessionNotes(nextNotes);
+      setActiveSessionConsultation({
+        ...activeSessionConsultation,
+        session_notes: nextNotes
+      });
+    };
+
+    window.addEventListener('consultation-session-notes', handleSessionNotes);
+    return () => window.removeEventListener('consultation-session-notes', handleSessionNotes);
+  }, [activeSessionConsultation]);
+
   const formatTimer = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -114,14 +131,22 @@ export default function ClientDashboard({ token, user, onLogout }) {
       if (res.ok) {
         const updated = await res.json();
         setActiveSessionConsultation(updated);
-        setStatusMessage('ØªÙ… ØªØ­Ø¯ÙŠØ« ÙˆØ­ÙØ¸ Ø§Ù„Ù…Ù„Ø§Ø­Ø¸Ø§Øª Ø§Ù„Ù…Ø´ØªØ±ÙƒØ© Ù„Ù„Ø§Ø³ØªØ´Ø§Ø±Ø©.');
+        setStatusMessage('تم تحديث وحفظ الملاحظات المشتركة للاستشارة.');
         fetchConsultations();
       } else {
-        setErrorMessage('ÙØ´Ù„ ØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ù„Ø§Ø­Ø¸Ø§Øª.');
+        setErrorMessage('فشل تحديث الملاحظات.');
       }
     } catch (err) {
-      setErrorMessage('Ø­Ø¯Ø« Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù….');
+      setErrorMessage('حدث خطأ في الاتصال بالخادم.');
     }
+  };
+
+  const handlePrintSessionNotes = () => {
+    document.body.classList.add('printing-session-notes');
+    window.print();
+    window.setTimeout(() => {
+      document.body.classList.remove('printing-session-notes');
+    }, 500);
   };
 
   useEffect(() => {
@@ -134,7 +159,7 @@ export default function ClientDashboard({ token, user, onLogout }) {
 
     const interval = setInterval(() => {
       fetchNotifications();
-    }, 6000); // ØªØ­Ø¯ÙŠØ« Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª ÙƒÙ„ 6 Ø«ÙˆØ§Ù†Ù
+    }, 6000); // تحديث الإشعارات كل 6 ثوانٍ
     return () => clearInterval(interval);
   }, []);
 
@@ -344,19 +369,19 @@ export default function ClientDashboard({ token, user, onLogout }) {
       });
       const data = await res.json();
       if (res.ok) {
-        setStatusMessage(`ØªÙ… ØªØ³Ø¯ÙŠØ¯ Ø§Ù„ÙØ§ØªÙˆØ±Ø© Ø¨Ù†Ø¬Ø§Ø­ Ø¹Ø¨Ø± ${paymentMethod === 'kuraimi' ? 'Ù…Ø­ÙØ¸Ø© Ø§Ù„ÙƒØ±ÙŠÙ…ÙŠ' : paymentMethod === 'floosak' ? 'Ù…Ø­ÙØ¸Ø© ÙÙ„ÙˆØ³Ùƒ' : paymentMethod === 'jawaly' ? 'Ù…Ø­ÙØ¸Ø© Ø¬ÙˆØ§Ù„ÙŠ' : paymentMethod === 'mada' ? 'Ù…Ø¯Ù‰' : 'ÙÙŠØ²Ø§'}!`);
+        setStatusMessage(`تم تسديد الفاتورة بنجاح عبر ${paymentMethod === 'kuraimi' ? 'محفظة الكريمي' : paymentMethod === 'floosak' ? 'محفظة فلوسك' : paymentMethod === 'jawaly' ? 'محفظة جوالي' : paymentMethod === 'mada' ? 'مدى' : 'فيزا'}!`);
         setShowPayModal(false);
         setPaymentMethod('');
         setSelectedInvoice(null);
         fetchInvoices();
-        // ÙØªØ­ Ø§Ù„Ø³Ù†Ø¯ Ù…Ø¨Ø§Ø´Ø±Ø© Ù„Ù„Ù…Ø³ØªØ®Ø¯Ù…
+        // فتح السند مباشرة للمستخدم
         setReceiptInvoice(data);
         setShowReceiptModal(true);
       } else {
-        setErrorMessage(data.detail || 'ÙØ´Ù„ Ù…Ø¹Ø§Ù„Ø¬Ø© Ø¹Ù…Ù„ÙŠØ© Ø§Ù„Ø³Ø¯Ø§Ø¯.');
+        setErrorMessage(data.detail || 'فشل معالجة عملية السداد.');
       }
     } catch (err) {
-      setErrorMessage('Ø­Ø¯Ø« Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø§ØªØµØ§Ù„ Ø¨Ø§Ù„Ø®Ø§Ø¯Ù….');
+      setErrorMessage('حدث خطأ في الاتصال بالخادم.');
     }
   };
 
@@ -393,16 +418,16 @@ export default function ClientDashboard({ token, user, onLogout }) {
         })
       });
       if (res.ok) {
-        setStatusMessage(`ØªÙ… Ø¥Ø±Ø³Ø§Ù„ Ø·Ù„Ø¨ Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø© Ù„Ù„Ù…Ø­Ø§Ù…ÙŠ ${selectedLawyer.full_name} Ø¨Ù†Ø¬Ø§Ø­.`);
+        setStatusMessage(`تم إرسال طلب الاستشارة للمحامي ${selectedLawyer.full_name} بنجاح.`);
         setShowBookModal(false);
         setBookDetails({ date: '', notes: '' });
         fetchConsultations();
       } else {
         const data = await res.json();
-        setErrorMessage(data.detail || 'ÙØ´Ù„ Ø¥Ø±Ø³Ø§Ù„ Ø·Ù„Ø¨ Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø©.');
+        setErrorMessage(data.detail || 'فشل إرسال طلب الاستشارة.');
       }
     } catch (err) {
-      setErrorMessage('Ø­Ø¯Ø« Ø®Ø·Ø£ ÙÙŠ Ø§Ù„Ø®Ø§Ø¯Ù….');
+      setErrorMessage('حدث خطأ في الخادم.');
     }
   };
 
@@ -453,14 +478,14 @@ export default function ClientDashboard({ token, user, onLogout }) {
       setUploadProgress(0);
       setUploadFile(null);
       if (xhr.status === 200 || xhr.status === 201) {
-        setStatusMessage('ðŸ”’ ØªÙ… ØªØ´ÙÙŠØ± Ø§Ù„Ù…Ø³ØªÙ†Ø¯ Ø¨Ù†Ø¬Ø§Ø­ ÙˆÙ…Ø´Ø§Ø±ÙƒØªÙ‡ Ù…Ø¹ Ù…Ø­Ø§Ù…ÙŠÙƒ.');
+        setStatusMessage('🔒 تم تشفير المستند بنجاح ومشاركته مع محاميك.');
         fetchCaseDetail(caseId);
       } else {
         try {
           const resJson = JSON.parse(xhr.responseText);
-          setErrorMessage(resJson.detail || 'ÙØ´Ù„ Ø±ÙØ¹ Ø§Ù„Ù…Ø³ØªÙ†Ø¯.');
+          setErrorMessage(resJson.detail || 'فشل رفع المستند.');
         } catch {
-          setErrorMessage('ÙØ´Ù„ Ø±ÙØ¹ Ø§Ù„Ù…Ø³ØªÙ†Ø¯.');
+          setErrorMessage('فشل رفع المستند.');
         }
       }
     };
@@ -468,38 +493,38 @@ export default function ClientDashboard({ token, user, onLogout }) {
     xhr.onerror = () => {
       setIsUploading(false);
       setUploadProgress(0);
-      setErrorMessage('Ø­Ø¯Ø« Ø®Ø·Ø£ Ø£Ø«Ù†Ø§Ø¡ Ø§Ù„Ø±ÙØ¹.');
+      setErrorMessage('حدث خطأ أثناء الرفع.');
     };
 
     xhr.send(formData);
   };
 
-  // ØªØµÙÙŠØ© Ø§Ù„Ù…Ø­Ø§Ù…ÙŠÙ† Ø¨Ù†Ø§Ø¡ Ø¹Ù„Ù‰ Ø§Ù„Ø¨Ø­Ø«
+  // تصفية المحامين بناء على البحث
   const filteredLawyers = lawyers.filter(l => {
     const matchesQuery = l.full_name.includes(searchQuery) || (l.bio && l.bio.includes(searchQuery));
     const matchesSpec = specFilter === '' || l.specialization === specFilter;
     return matchesQuery && matchesSpec;
   });
 
-  // ØªÙˆÙ„ÙŠØ¯ Ø£Ø­Ø¯Ø§Ø« Ø§Ù„Ù…Ø®Ø·Ø· Ø§Ù„Ø²Ù…Ù†ÙŠ Ø§Ù„Ø¨ØµØ±ÙŠ Ø§Ù„Ù…Ø·ÙˆØ±
+  // توليد أحداث المخطط الزمني البصري المطور
   const timelineEvents = [];
   if (selectedCase) {
     timelineEvents.push({
       id: 'case-creation',
-      title: "ØªØ£Ø³ÙŠØ³ Ø§Ù„Ù‚Ø¶ÙŠØ© ÙˆÙ‚ÙŠØ¯Ù‡Ø§ Ø¨Ø§Ù„Ù…Ù†ØµØ©",
+      title: "تأسيس القضية وقيدها بالمنصة",
       date: selectedCase.created_at,
       type: 'administrative',
-      summary: `ØªÙ… ÙØªØ­ Ù…Ù„Ù Ø§Ù„Ù‚Ø¶ÙŠØ© ØªØ­Øª Ø±Ù‚Ù… Ù‚ÙŠØ¯: ${selectedCase.case_number || 'ØºÙŠØ± Ù…Ù‚ÙŠØ¯'} Ø¨Ù…Ø­ÙƒÙ…Ø©: ${selectedCase.court_name || 'ØºÙŠØ± Ù…Ø­Ø¯Ø¯Ø©'}.`
+      summary: `تم فتح ملف القضية تحت رقم قيد: ${selectedCase.case_number || 'غير مقيد'} بمحكمة: ${selectedCase.court_name || 'غير محددة'}.`
     });
     
     if (selectedCase.hearings) {
       selectedCase.hearings.forEach(h => {
         timelineEvents.push({
           id: h.id,
-          title: `Ø¬Ù„Ø³Ø© Ù…Ø±Ø§ÙØ¹Ø© Ù‚Ø¶Ø§Ø¦ÙŠØ©`,
+          title: `جلسة مرافعة قضائية`,
           date: h.hearing_date,
           type: 'active',
-          summary: `ðŸ“ Ø§Ù„Ù‚Ø§Ø¹Ø©/Ø§Ù„Ø¯Ø§Ø¦Ø±Ø©: ${h.room_number || 'ØºÙŠØ± Ù…Ø­Ø¯Ø¯Ø©'} | ${h.summary || 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ù„Ø§Ø­Ø¸Ø§Øª Ø¥Ø¶Ø§ÙÙŠØ©'}`
+          summary: `📍 القاعة/الدائرة: ${h.room_number || 'غير محددة'} | ${h.summary || 'لا توجد ملاحظات إضافية'}`
         });
       });
     }
@@ -508,10 +533,10 @@ export default function ClientDashboard({ token, user, onLogout }) {
       selectedCase.documents.forEach(d => {
         timelineEvents.push({
           id: d.id,
-          title: `Ù…Ø´Ø§Ø±ÙƒØ© Ù…Ø³ØªÙ†Ø¯ ÙˆØªØ´ÙÙŠØ±Ù‡`,
+          title: `مشاركة مستند وتشفيره`,
           date: d.uploaded_at,
           type: 'administrative',
-          summary: `ðŸ“„ Ø±ÙØ¹ Ù…Ø³ØªÙ†Ø¯: '${d.file_name}' Ø¨ÙˆØ§Ø³Ø·Ø©: ${d.uploaded_by_name || 'Ø£Ø­Ø¯ Ø§Ù„Ø£Ø·Ø±Ø§Ù'}`
+          summary: `📄 رفع مستند: '${d.file_name}' بواسطة: ${d.uploaded_by_name || 'أحد الأطراف'}`
         });
       });
     }
@@ -520,18 +545,18 @@ export default function ClientDashboard({ token, user, onLogout }) {
     caseInvoices.forEach(inv => {
       timelineEvents.push({
         id: `inv-${inv.id}`,
-        title: `Ø¥ØµØ¯Ø§Ø± ÙØ§ØªÙˆØ±Ø© Ø£ØªØ¹Ø§Ø¨`,
+        title: `إصدار فاتورة أتعاب`,
         date: inv.created_at,
         type: 'active',
-        summary: `ðŸ’³ ÙØ§ØªÙˆØ±Ø© Ø¨Ù‚ÙŠÙ…Ø© ${inv.amount.toLocaleString('ar-YE')} Ø±.ÙŠ Ù…Ø³ØªØ­Ù‚Ø©. Ø§Ù„ÙˆØµÙ: ${inv.description || ''}`
+        summary: `💳 فاتورة بقيمة ${inv.amount.toLocaleString('ar-YE')} ر.ي مستحقة. الوصف: ${inv.description || ''}`
       });
       if (inv.status === 'paid' && inv.paid_at) {
         timelineEvents.push({
           id: `inv-paid-${inv.id}`,
-          title: `Ø³Ø¯Ø§Ø¯ Ø§Ù„Ø¯ÙØ¹Ø© Ø§Ù„Ù…Ø§Ù„ÙŠØ© ÙˆØªÙˆØ«ÙŠÙ‚ Ø§Ù„Ø³Ù†Ø¯`,
+          title: `سداد الدفعة المالية وتوثيق السند`,
           date: inv.paid_at,
           type: 'completed',
-          summary: `âœ“ ØªÙ… Ø§Ù„Ø¯ÙØ¹ Ø¨Ù†Ø¬Ø§Ø­ Ø¨Ù‚ÙŠÙ…Ø© ${inv.amount.toLocaleString('ar-YE')} Ø±.ÙŠ Ø¹Ø¨Ø± ${inv.payment_method === 'kuraimi' ? 'Ù…Ø­ÙØ¸Ø© Ø§Ù„ÙƒØ±ÙŠÙ…ÙŠ' : inv.payment_method === 'floosak' ? 'Ù…Ø­ÙØ¸Ø© ÙÙ„ÙˆØ³Ùƒ' : inv.payment_method === 'jawaly' ? 'Ù…Ø­ÙØ¸Ø© Ø¬ÙˆØ§Ù„ÙŠ' : inv.payment_method === 'mada' ? 'Ø¨Ø·Ø§Ù‚Ø© Ù…Ø¯Ù‰' : 'ÙÙŠØ²Ø§'} | Ù…Ø¹Ø±Ù Ø§Ù„Ø¹Ù…Ù„ÙŠØ©: ${inv.transaction_id}`
+          summary: `✓ تم الدفع بنجاح بقيمة ${inv.amount.toLocaleString('ar-YE')} ر.ي عبر ${inv.payment_method === 'kuraimi' ? 'محفظة الكريمي' : inv.payment_method === 'floosak' ? 'محفظة فلوسك' : inv.payment_method === 'jawaly' ? 'محفظة جوالي' : inv.payment_method === 'mada' ? 'بطاقة مدى' : 'فيزا'} | معرف العملية: ${inv.transaction_id}`
         });
       }
     });
@@ -541,52 +566,52 @@ export default function ClientDashboard({ token, user, onLogout }) {
 
   return (
     <div className="dashboard-grid">
-      {/* Ø§Ù„Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø¬Ø§Ù†Ø¨ÙŠØ© */}
+      {/* القائمة الجانبية */}
       <aside className="sidebar">
         <div>
-          <h2 style={{ color: 'var(--accent-gold)', marginBottom: '8px' }}>Ù…Ù†ØµØ© Ø£Ø±ÙˆÙ‰</h2>
-          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Ø¨ÙˆØ§Ø¨Ø© Ø§Ù„Ù…ÙˆÙƒÙ„ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠØ©</p>
+          <h2 style={{ color: 'var(--accent-gold)', marginBottom: '8px' }}>منصة أروى</h2>
+          <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>بوابة الموكل الإلكترونية</p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '20px' }}>
-          <button className={`btn ${activeTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('overview'); setSelectedCase(null); }}>ðŸ’¼ Ù‚Ø¶Ø§ÙŠØ§ÙŠ ÙˆÙ…Ù„ÙØ§ØªÙŠ ({cases.length})</button>
-          <button className={`btn ${activeTab === 'search' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('search'); setSelectedCase(null); }}>ðŸ” Ø§Ø¨Ø­Ø« Ø¹Ù† Ù…Ø­Ø§Ù…Ù</button>
-          <button className={`btn ${activeTab === 'consultations' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('consultations'); setSelectedCase(null); }}>ðŸ“… Ù…ÙˆØ§Ø¹ÙŠØ¯ÙŠ ÙˆØ§Ø³ØªØ´Ø§Ø±Ø§ØªÙŠ</button>
-          <button className={`btn ${activeTab === 'billing' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('billing'); setSelectedCase(null); }}>ðŸ’³ Ø§Ù„ÙÙˆØ§ØªÙŠØ± ÙˆØ§Ù„Ù…Ø¯ÙÙˆØ¹Ø§Øª</button>
-          <button className={`btn ${activeTab === 'ai' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('ai'); setSelectedCase(null); }}>ðŸ§  Ø§Ù„Ù…Ø³Ø§Ø¹Ø¯ Ø§Ù„Ø°ÙƒÙŠ</button>
-          <button className={`btn ${activeTab === 'laws' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('laws'); setSelectedCase(null); }}>âš–ï¸ Ø§Ù„Ù…ÙƒØªØ¨Ø© Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠØ©</button>
+          <button className={`btn ${activeTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('overview'); setSelectedCase(null); }}>💼 قضاياي وملفاتي ({cases.length})</button>
+          <button className={`btn ${activeTab === 'search' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('search'); setSelectedCase(null); }}>🔍 ابحث عن محامٍ</button>
+          <button className={`btn ${activeTab === 'consultations' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('consultations'); setSelectedCase(null); }}>📅 مواعيدي واستشاراتي</button>
+          <button className={`btn ${activeTab === 'billing' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('billing'); setSelectedCase(null); }}>💳 الفواتير والمدفوعات</button>
+          <button className={`btn ${activeTab === 'ai' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('ai'); setSelectedCase(null); }}>🧠 المساعد الذكي</button>
+          <button className={`btn ${activeTab === 'laws' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => { setActiveTab('laws'); setSelectedCase(null); }}>⚖️ المكتبة القانونية</button>
         </div>
         <div style={{ marginTop: 'auto' }}>
-          <p style={{ fontSize: '0.9rem', marginBottom: '10px' }}>Ù…Ø±Ø­Ø¨Ø§Ù‹ØŒ {user.full_name}</p>
-          <button className="btn btn-danger" style={{ width: '100%' }} onClick={onLogout}>ØªØ³Ø¬ÙŠÙ„ Ø§Ù„Ø®Ø±ÙˆØ¬</button>
+          <p style={{ fontSize: '0.9rem', marginBottom: '10px' }}>مرحباً، {user.full_name}</p>
+          <button className="btn btn-danger" style={{ width: '100%' }} onClick={onLogout}>تسجيل الخروج</button>
         </div>
       </aside>
 
-      {/* Ø§Ù„Ù…Ø­ØªÙˆÙ‰ Ø§Ù„Ø±Ø¦ÙŠØ³ÙŠ */}
+      {/* المحتوى الرئيسي */}
       <main className="main-content" onClick={() => setShowNotifDropdown(false)}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <h3 style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            {activeTab === 'overview' ? 'ðŸ’¼ Ù„ÙˆØ­Ø© Ø§Ù„Ù…ØªØ§Ø¨Ø¹Ø© ÙˆÙ‚Ø¶Ø§ÙŠØ§ Ø§Ù„Ù…Ø­ÙƒÙ…Ø©' : 
-             activeTab === 'search' ? 'ðŸ” Ø¯Ù„ÙŠÙ„ Ù…ÙƒØ§ØªØ¨ Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø© Ø§Ù„Ù…Ø¹ØªÙ…Ø¯Ø©' :
-             activeTab === 'consultations' ? 'ðŸ“… Ø£Ø¬Ù†Ø¯Ø© Ø§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯ ÙˆØ§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø§Øª' : 
-             activeTab === 'billing' ? 'ðŸ’³ Ø§Ù„Ù…Ø§Ù„ÙŠØ© ÙˆØ§Ù„ÙÙˆØ§ØªÙŠØ± ÙˆØ§Ù„ÙˆØ«Ø§Ø¦Ù‚' : 
-             activeTab === 'laws' ? 'âš–ï¸ Ù…ÙƒØªØ¨Ø© Ø§Ù„Ù‚ÙˆØ§Ù†ÙŠÙ† ÙˆØ§Ù„ØªØ´Ø±ÙŠØ¹Ø§Øª Ø§Ù„ÙŠÙ…Ù†ÙŠØ©' :
-             activeTab === 'virtual-session' ? 'ðŸŽ¥ ØºØ±ÙØ© Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø© Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠØ© Ø§Ù„Ù…Ø¨Ø§Ø´Ø±Ø©' : 'ðŸ§  Ø§Ù„Ù…Ø³Ø§Ø¹Ø¯ Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠ Ø§Ù„Ø°ÙƒÙŠ Ù„Ù…Ù†ØµØ© Ø£Ø±ÙˆÙ‰'}
+            {activeTab === 'overview' ? '💼 لوحة المتابعة وقضايا المحكمة' : 
+             activeTab === 'search' ? '🔍 دليل مكاتب الاستشارة المعتمدة' :
+             activeTab === 'consultations' ? '📅 أجندة المواعيد والاستشارات' : 
+             activeTab === 'billing' ? '💳 المالية والفواتير والوثائق' : 
+             activeTab === 'laws' ? '⚖️ مكتبة القوانين والتشريعات اليمنية' :
+             activeTab === 'virtual-session' ? '🎥 غرفة الاستشارة الافتراضية المباشرة' : '🧠 المساعد القانوني الذكي لمنصة أروى'}
           </h3>
           
           <div className="header-actions">
-            {/* Ø¬Ø±Ø³ Ø§Ù„Ø¥Ø´Ø¹Ø§Ø±Ø§Øª */}
+            {/* جرس الإشعارات */}
             <div className="notif-container" onClick={(e) => { e.stopPropagation(); setShowNotifDropdown(!showNotifDropdown); }}>
               <span className="notif-bell">
-                ðŸ”” {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
+                🔔 {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
               </span>
               
               {showNotifDropdown && (
                 <div className="notif-dropdown" onClick={(e) => e.stopPropagation()}>
                   <div className="notif-dropdown-header">
-                    <h4>ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø§Ù„Ù…Ù†ØµØ© ÙˆØ§Ù„Ù‚Ù†ÙˆØ§Øª</h4>
+                    <h4>تنبيهات المنصة والقنوات</h4>
                     {unreadCount > 0 && (
                       <span style={{ fontSize: '0.72rem', color: 'var(--accent-gold)', cursor: 'pointer', fontWeight: 'bold' }} onClick={handleMarkAllNotifsRead}>
-                        ØªØ¹Ù„ÙŠÙ… Ø§Ù„ÙƒÙ„ ÙƒÙ…Ù‚Ø±ÙˆØ¡ âœ“
+                        تعليم الكل كمقروء ✓
                       </span>
                     )}
                   </div>
@@ -604,7 +629,7 @@ export default function ClientDashboard({ token, user, onLogout }) {
                       </li>
                     ))}
                     {notifications.length === 0 && (
-                      <li style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Ù„Ø§ ØªÙˆØ¬Ø¯ Ø£ÙŠ ØªÙ†Ø¨ÙŠÙ‡Ø§Øª Ø­Ø§Ù„ÙŠØ©.</li>
+                      <li style={{ padding: '30px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>لا توجد أي تنبيهات حالية.</li>
                     )}
                   </ul>
                 </div>
@@ -613,56 +638,56 @@ export default function ClientDashboard({ token, user, onLogout }) {
           </div>
         </div>
 
-        {statusMessage && <div className="badge badge-success" style={{ display: 'block', padding: '12px', marginBottom: '15px' }}>âœ… {statusMessage}</div>}
-        {errorMessage && <div className="badge badge-warning" style={{ display: 'block', padding: '12px', marginBottom: '15px', color: 'var(--danger)', borderColor: 'var(--danger)' }}>âš ï¸ {errorMessage}</div>}
+        {statusMessage && <div className="badge badge-success" style={{ display: 'block', padding: '12px', marginBottom: '15px' }}>✅ {statusMessage}</div>}
+        {errorMessage && <div className="badge badge-warning" style={{ display: 'block', padding: '12px', marginBottom: '15px', color: 'var(--danger)', borderColor: 'var(--danger)' }}>⚠️ {errorMessage}</div>}
 
-        {/* 1. Ù‚Ø¶Ø§ÙŠØ§ÙŠ ÙˆÙ…Ù„ÙØ§ØªÙŠ */}
+        {/* 1. قضاياي وملفاتي */}
         {activeTab === 'overview' && !selectedCase && (
           <div>
-            <h1 style={{ marginBottom: '20px' }}>Ù…Ù„ÙØ§Øª Ø§Ù„Ù‚Ø¶Ø§ÙŠØ§ Ø§Ù„Ø¬Ø§Ø±ÙŠØ©</h1>
+            <h1 style={{ marginBottom: '20px' }}>ملفات القضايا الجارية</h1>
             <div className="card-grid">
               {cases.map(c => (
                 <div key={c.id} className="glass-panel lawyer-card" style={{ cursor: 'pointer' }} onClick={() => fetchCaseDetail(c.id)}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span className="badge badge-success">{c.status === 'active' ? 'Ù†Ø´Ø·Ø©' : 'Ù…Ù†ØªÙ‡ÙŠØ©'}</span>
-                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Ø±Ù‚Ù…: {c.case_number || 'ØºÙŠØ± Ù…Ù‚ÙŠØ¯'}</span>
+                    <span className="badge badge-success">{c.status === 'active' ? 'نشطة' : 'منتهية'}</span>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>رقم: {c.case_number || 'غير مقيد'}</span>
                   </div>
                   <h3>{c.title}</h3>
-                  <p style={{ color: 'var(--text-secondary)' }}>ðŸ›ï¸ {c.court_name || 'ØºÙŠØ± Ù…Ø­Ø­Ø¯Ø¯'}</p>
-                  <p style={{ fontSize: '0.9rem', color: 'var(--accent-gold)' }}>âš–ï¸ Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ Ø§Ù„ÙˆÙƒÙŠÙ„: Ø£. {c.lawyer_id ? 'Ù…Ø¹ÙŠÙ† Ø¨Ù†Ø¬Ø§Ø­' : 'ØºÙŠØ± Ù…Ø¹ÙŠÙ†'}</p>
+                  <p style={{ color: 'var(--text-secondary)' }}>🏛️ {c.court_name || 'غير مححدد'}</p>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--accent-gold)' }}>⚖️ المحامي الوكيل: أ. {c.lawyer_id ? 'معين بنجاح' : 'غير معين'}</p>
                 </div>
               ))}
               {cases.length === 0 && (
                 <div className="glass-panel" style={{ padding: '30px', gridColumn: '1 / -1', textAlign: 'center' }}>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Ù„ÙŠØ³ Ù„Ø¯ÙŠÙƒ Ù‚Ø¶Ø§ÙŠØ§ Ù†Ø´Ø·Ø© Ù…Ø³Ø¬Ù„Ø© Ø¨Ø§Ø³Ù…Ùƒ Ø­Ø§Ù„ÙŠØ§Ù‹.</p>
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '8px' }}>Ø¹Ù†Ø¯ Ù‚ÙŠØ§Ù… Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ Ø¨ØªØ³Ø¬ÙŠÙ„ Ù‚Ø¶ÙŠØ© Ù„Ùƒ Ø¨Ø§Ø³ØªØ®Ø¯Ø§Ù… Ø¨Ø±ÙŠØ¯Ùƒ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠØŒ Ø³ØªØ¸Ù‡Ø± Ù‡Ù†Ø§ ÙÙˆØ±Ø§Ù‹.</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>ليس لديك قضايا نشطة مسجلة باسمك حالياً.</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: '8px' }}>عند قيام المحامي بتسجيل قضية لك باستخدام بريدك الإلكتروني، ستظهر هنا فوراً.</p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* ØªÙØ§ØµÙŠÙ„ Ø§Ù„Ù‚Ø¶ÙŠØ© ÙˆØ§Ù„Ù…Ø®Ø·Ø· Ø§Ù„Ø²Ù…Ù†ÙŠ */}
+        {/* تفاصيل القضية والمخطط الزمني */}
         {selectedCase && (
           <div>
-            <button className="btn btn-secondary" style={{ marginBottom: '20px' }} onClick={() => setSelectedCase(null)}>ðŸ”™ Ø§Ù„Ø¹ÙˆØ¯Ø© Ù„Ù„Ù‚Ø§Ø¦Ù…Ø©</button>
+            <button className="btn btn-secondary" style={{ marginBottom: '20px' }} onClick={() => setSelectedCase(null)}>🔙 العودة للقائمة</button>
             <div className="glass-panel" style={{ padding: '24px', marginBottom: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <h2>{selectedCase.title}</h2>
-                <span className="badge badge-success">{selectedCase.status === 'active' ? 'Ù†Ø´Ø·Ø©' : 'Ù…ØºÙ„Ù‚Ø©'}</span>
+                <span className="badge badge-success">{selectedCase.status === 'active' ? 'نشطة' : 'مغلقة'}</span>
               </div>
-              <p style={{ marginTop: '10px' }}>ðŸ›ï¸ <strong>Ø§Ù„Ù…Ø­ÙƒÙ…Ø© Ø§Ù„Ù…Ø®ØªØµØ©:</strong> {selectedCase.court_name || 'ØºÙŠØ± Ù…Ø­Ø¯Ø¯'} | âš–ï¸ <strong>Ø±Ù‚Ù… Ù‚ÙŠØ¯ Ø§Ù„Ù‚Ø¶ÙŠØ©:</strong> {selectedCase.case_number || 'ØºÙŠØ± Ù…Ù‚ÙŠØ¯'}</p>
+              <p style={{ marginTop: '10px' }}>🏛️ <strong>المحكمة المختصة:</strong> {selectedCase.court_name || 'غير محدد'} | ⚖️ <strong>رقم قيد القضية:</strong> {selectedCase.case_number || 'غير مقيد'}</p>
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', marginTop: '15px', paddingTop: '15px' }}>
-                <p>âš–ï¸ <strong>Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ Ø§Ù„ÙˆÙƒÙŠÙ„:</strong> Ø£. {selectedCase.lawyer_name}</p>
+                <p>⚖️ <strong>المحامي الوكيل:</strong> أ. {selectedCase.lawyer_name}</p>
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-              {/* Ø§Ù„Ù…Ø®Ø·Ø· Ø§Ù„Ø²Ù…Ù†ÙŠ Ù„Ù„Ù…Ø­ÙƒÙ…Ø© ÙˆØ§Ù„Ù…Ø³ØªÙ†Ø¯Ø§Øª */}
+              {/* المخطط الزمني للمحكمة والمستندات */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                {/* Ø§Ù„Ø¬Ù„Ø³Ø§Øª ÙˆØ§Ù„Ù…ÙˆØ§Ø¹ÙŠØ¯ */}
+                {/* الجلسات والمواعيد */}
                 <div className="glass-panel" style={{ padding: '20px' }}>
-                  <h3>ðŸ“… Ø§Ù„Ù…Ø®Ø·Ø· Ø§Ù„Ø²Ù…Ù†ÙŠ Ø§Ù„Ø¨ØµØ±ÙŠ Ø§Ù„Ù…Ø·ÙˆØ± ÙˆØ³Ø¬Ù„ Ø§Ù„Ø£Ø­Ø¯Ø§Ø«</h3>
+                  <h3>📅 المخطط الزمني البصري المطور وسجل الأحداث</h3>
                   <div className="premium-roadmap">
                     {timelineEvents.map((evt, idx) => (
                       <div key={evt.id || idx} className={`roadmap-step ${evt.type}`}>
@@ -681,16 +706,16 @@ export default function ClientDashboard({ token, user, onLogout }) {
                       </div>
                     ))}
                     {timelineEvents.length === 0 && (
-                      <p style={{ color: 'var(--text-secondary)' }}>Ù„Ø§ ØªÙˆØ¬Ø¯ Ø£Ø­Ø¯Ø§Ø« Ù…Ø³Ø¬Ù„Ø© Ù„Ù‡Ø°Ù‡ Ø§Ù„Ù‚Ø¶ÙŠØ©.</p>
+                      <p style={{ color: 'var(--text-secondary)' }}>لا توجد أحداث مسجلة لهذه القضية.</p>
                     )}
                   </div>
                 </div>
 
-                {/* Ø§Ù„Ù…Ø³ØªÙ†Ø¯Ø§Øª */}
+                {/* المستندات */}
                 <div className="glass-panel" style={{ padding: '20px' }}>
-                  <h3>ðŸ“‚ Ù…Ù„ÙØ§Øª ÙˆÙ…Ø³ØªÙ†Ø¯Ø§Øª Ø§Ù„Ù‚Ø¶ÙŠØ©</h3>
+                  <h3>📂 ملفات ومستندات القضية</h3>
                   
-                  {/* Ù…Ù†Ø·Ù‚Ø© Ø§Ù„Ø³Ø­Ø¨ ÙˆØ§Ù„Ø¥ÙÙ„Ø§Øª */}
+                  {/* منطقة السحب والإفلات */}
                   <div 
                     className={`drag-drop-zone ${isDragging ? 'active' : ''}`}
                     onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
@@ -707,9 +732,9 @@ export default function ClientDashboard({ token, user, onLogout }) {
                     onClick={() => document.getElementById('client-file-input').click()}
                     style={{ marginTop: '15px' }}
                   >
-                    <div className="drag-drop-zone-icon">ðŸ“¥</div>
-                    <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 'bold' }}>Ø§Ø³Ø­Ø¨ ÙˆØ£ÙÙ„Øª Ø§Ù„Ù…Ø³ØªÙ†Ø¯ Ù‡Ù†Ø§ Ù„Ù„Ø±ÙØ¹</p>
-                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ø£Ùˆ Ø§Ù†Ù‚Ø± Ù‡Ù†Ø§ Ù„ØªØµÙØ­ Ø§Ù„Ù…Ù„ÙØ§Øª Ù…Ù† Ø¬Ù‡Ø§Ø²Ùƒ</p>
+                    <div className="drag-drop-zone-icon">📥</div>
+                    <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 'bold' }}>اسحب وأفلت المستند هنا للرفع</p>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>أو انقر هنا لتصفح الملفات من جهازك</p>
                     <input 
                       type="file" 
                       id="client-file-input" 
@@ -724,58 +749,58 @@ export default function ClientDashboard({ token, user, onLogout }) {
                     />
                   </div>
 
-                  {/* Ù…Ø¤Ø´Ø± Ø±ÙØ¹ ÙˆØªØ´ÙÙŠØ± Ø§Ù„Ù…Ù„ÙØ§Øª */}
+                  {/* مؤشر رفع وتشفير الملفات */}
                   {isUploading && (
                     <div style={{ marginBottom: '15px' }}>
                       <div className="upload-progress-container">
                         <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }}></div>
                       </div>
                       <div className="upload-progress-text">
-                        ðŸ”’ ÙŠØ¬Ø±ÙŠ Ø§Ù„ØªØ´ÙÙŠØ± ÙˆØ§Ù„Ø±ÙØ¹ Ø§Ù„Ù…Ø´ÙØ±... {uploadProgress}%
+                        🔒 يجري التشفير والرفع المشفر... {uploadProgress}%
                       </div>
                     </div>
                   )}
 
-                  {/* Ø²Ø± Ø³Ø±ÙŠØ¹: ØªØ´ÙÙŠØ± ÙˆÙ…Ø´Ø§Ø±ÙƒØ© Ù…Ø¹ Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ */}
+                  {/* زر سريع: تشفير ومشاركة مع المحامي */}
                   {uploadFile && !isUploading && (
                     <button 
                       className="btn btn-primary btn-share-lock" 
                       style={{ width: '100%', marginBottom: '15px' }}
                       onClick={() => performUpload(uploadFile, selectedCase.id)}
                     >
-                      ðŸ”’ ØªØ´ÙÙŠØ± ÙˆÙ…Ø´Ø§Ø±ÙƒØ© Ø§Ù„Ù…Ø³ØªÙ†Ø¯ '{uploadFile.name}' Ù…Ø¹ Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ
+                      🔒 تشفير ومشاركة المستند '{uploadFile.name}' مع المحامي
                     </button>
                   )}
                   <ul style={{ listStyle: 'none', padding: 0 }}>
                     {selectedCase.documents && selectedCase.documents.map(d => (
                       <li key={d.id} style={{ display: 'flex', flexDirection: 'column', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: '8px', marginBottom: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>ðŸ“„ {d.file_name}</span>
-                          <a href={`http://localhost:8000${d.file_url}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-gold)', textDecoration: 'none', fontSize: '0.85rem' }}>ØªØ­Ù…ÙŠÙ„ ðŸ“¥</a>
+                          <span style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>📄 {d.file_name}</span>
+                          <a href={`http://localhost:8000${d.file_url}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent-gold)', textDecoration: 'none', fontSize: '0.85rem' }}>تحميل 📥</a>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '8px' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ø¨ÙˆØ§Ø³Ø·Ø©: {d.uploaded_by_name || 'Ø£Ø­Ø¯ Ø§Ù„Ø£Ø·Ø±Ø§Ù'}</span>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>بواسطة: {d.uploaded_by_name || 'أحد الأطراف'}</span>
                           
                           <button 
                             className="btn btn-secondary" 
                             style={{ padding: '4px 8px', fontSize: '0.75rem', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }} 
                             onClick={() => { setSelectedDocForAnalysis(d); setShowAnalysisModal(true); }}
                           >
-                            {d.ai_analysis ? 'ðŸ“Š Ø¹Ø±Ø¶ Ø§Ù„ØªÙ‚Ø±ÙŠØ± Ø§Ù„Ø°ÙƒÙŠ' : 'ðŸ§  ÙØ­Øµ Ø¨Ø§Ù„Ø°ÙƒØ§Ø¡ Ø§Ù„Ø§ØµØ·Ù†Ø§Ø¹ÙŠ'}
+                            {d.ai_analysis ? '📊 عرض التقرير الذكي' : '🧠 فحص بالذكاء الاصطناعي'}
                           </button>
                         </div>
                       </li>
                     ))}
                     {(!selectedCase.documents || selectedCase.documents.length === 0) && (
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ø³ØªÙ†Ø¯Ø§Øª Ù…Ø±ÙÙˆØ¹Ø© Ø¨Ø¹Ø¯.</p>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>لا توجد مستندات مرفوعة بعد.</p>
                     )}
                   </ul>
                 </div>
               </div>
 
-              {/* Ø§Ù„Ù…Ø­Ø§Ø¯Ø«Ø© Ù…Ø¹ Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ */}
+              {/* المحادثة مع المحامي */}
               <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column' }}>
-                <h3 style={{ marginBottom: '15px' }}>ðŸ’¬ ØªÙˆØ§ØµÙ„ Ù…Ø¨Ø§Ø´Ø± Ù…Ø¹ Ù…Ø­Ø§Ù…ÙŠÙƒ Ø§Ù„ÙˆÙƒÙŠÙ„</h3>
+                <h3 style={{ marginBottom: '15px' }}>💬 تواصل مباشر مع محاميك الوكيل</h3>
                 <div className="chat-container">
                   <div className="chat-messages">
                     {selectedCase.messages && selectedCase.messages.map(m => (
@@ -787,8 +812,8 @@ export default function ClientDashboard({ token, user, onLogout }) {
                     ))}
                   </div>
                   <form onSubmit={handleSendMessage} className="chat-input-area">
-                    <input type="text" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} className="form-input" placeholder="Ø§ÙƒØªØ¨ Ø§Ø³ØªÙØ³Ø§Ø±Ùƒ Ù„Ù„Ù…Ø­Ø§Ù…ÙŠ Ù‡Ù†Ø§..." />
-                    <button type="submit" className="btn btn-primary">Ø¥Ø±Ø³Ø§Ù„</button>
+                    <input type="text" value={chatMessage} onChange={(e) => setChatMessage(e.target.value)} className="form-input" placeholder="اكتب استفسارك للمحامي هنا..." />
+                    <button type="submit" className="btn btn-primary">إرسال</button>
                   </form>
                 </div>
               </div>
@@ -796,18 +821,18 @@ export default function ClientDashboard({ token, user, onLogout }) {
           </div>
         )}
 
-        {/* 2. Ø§Ø¨Ø­Ø« Ø¹Ù† Ù…Ø­Ø§Ù…Ù ÙˆØ­Ø¬Ø² Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø§Øª */}
+        {/* 2. ابحث عن محامٍ وحجز الاستشارات */}
         {activeTab === 'search' && !selectedCase && (
           <div>
-            <h1>Ø¯Ù„ÙŠÙ„ Ù…ÙƒØ§ØªØ¨ Ø§Ù„Ù…Ø­Ø§Ù…Ø§Ø© Ø§Ù„Ù…Ø¹ØªÙ…Ø¯Ø©</h1>
+            <h1>دليل مكاتب المحاماة المعتمدة</h1>
             <div style={{ display: 'flex', gap: '15px', marginTop: '15px', marginBottom: '20px' }}>
-              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="form-input" placeholder="Ø§Ø¨Ø­Ø« Ø¨Ø§Ø³Ù… Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ Ø£Ùˆ Ø§Ù„ØªØ®ØµØµ..." style={{ flex: 2 }} />
+              <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="form-input" placeholder="ابحث باسم المحامي أو التخصص..." style={{ flex: 2 }} />
               <select value={specFilter} onChange={(e) => setSpecFilter(e.target.value)} className="form-input" style={{ flex: 1 }}>
-                <option value="">ÙƒÙ„ Ø§Ù„ØªØ®ØµØµØ§Øª</option>
-                <option value="ØªØ¬Ø§Ø±ÙŠ">ØªØ¬Ø§Ø±ÙŠ</option>
-                <option value="Ø¬Ù†Ø§Ø¦ÙŠ">Ø¬Ù†Ø§Ø¦ÙŠ</option>
-                <option value="Ù…Ø¯Ù†ÙŠ">Ù…Ø¯Ù†ÙŠ</option>
-                <option value="Ø£Ø­ÙˆØ§Ù„ Ø´Ø®ØµÙŠØ©">Ø£Ø­ÙˆØ§Ù„ Ø´Ø®ØµÙŠØ©</option>
+                <option value="">كل التخصصات</option>
+                <option value="تجاري">تجاري</option>
+                <option value="جنائي">جنائي</option>
+                <option value="مدني">مدني</option>
+                <option value="أحوال شخصية">أحوال شخصية</option>
               </select>
             </div>
 
@@ -815,19 +840,19 @@ export default function ClientDashboard({ token, user, onLogout }) {
               {filteredLawyers.map(l => (
                 <div key={l.id} className="glass-panel lawyer-card">
                   <div className="lawyer-header">
-                    <div className="lawyer-avatar">âš–ï¸</div>
+                    <div className="lawyer-avatar">⚖️</div>
                     <div>
-                      <h3>Ø£. {l.full_name}</h3>
-                      <span className="badge badge-success" style={{ background: 'rgba(197, 160, 89, 0.1)', color: 'var(--accent-gold)' }}>Ø§Ù„ØªØ®ØµØµ: {l.specialization}</span>
+                      <h3>أ. {l.full_name}</h3>
+                      <span className="badge badge-success" style={{ background: 'rgba(197, 160, 89, 0.1)', color: 'var(--accent-gold)' }}>التخصص: {l.specialization}</span>
                     </div>
                   </div>
                   {l.bio && <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', flex: 1 }}>{l.bio}</p>}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
                     <div>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ø§Ù„Ø³Ø¹Ø± Ø§Ù„ØªÙ‚Ø±ÙŠØ¨ÙŠ</span>
-                      <p style={{ fontWeight: 'bold', color: 'var(--accent-gold)' }}>{l.hourly_rate} Ø±ÙŠØ§Ù„ / Ø³Ø§Ø¹Ø©</p>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>السعر التقريبي</span>
+                      <p style={{ fontWeight: 'bold', color: 'var(--accent-gold)' }}>{l.hourly_rate} ريال / ساعة</p>
                     </div>
-                    <button className="btn btn-primary" onClick={() => { setSelectedLawyer(l); setShowBookModal(true); }}>Ø§Ø­Ø¬Ø² Ø§Ø³ØªØ´Ø§Ø±Ø©</button>
+                    <button className="btn btn-primary" onClick={() => { setSelectedLawyer(l); setShowBookModal(true); }}>احجز استشارة</button>
                   </div>
                 </div>
               ))}
@@ -835,21 +860,21 @@ export default function ClientDashboard({ token, user, onLogout }) {
           </div>
         )}
 
-        {/* 3. Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø§Øª */}
+        {/* 3. الاستشارات */}
         {activeTab === 'consultations' && !selectedCase && (
           <div>
-            <h1>Ø¬Ø¯ÙˆÙ„ Ø·Ù„Ø¨Ø§Øª Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø§Øª Ø§Ù„Ø®Ø§ØµØ© Ø¨ÙŠ</h1>
+            <h1>جدول طلبات الاستشارات الخاصة بي</h1>
             <div style={{ marginTop: '20px' }}>
               {consultations.map(c => (
                 <div key={c.id} className="glass-panel" style={{ padding: '20px', marginBottom: '15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
-                    <h3>âš–ï¸ Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ: Ø£. {c.lawyer_name}</h3>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>ðŸ“… Ø§Ù„Ù…ÙˆØ¹Ø¯: {new Date(c.date).toLocaleString('ar-EG')}</p>
-                    {c.notes && <p style={{ marginTop: '5px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>ðŸ“ Ù…Ù„Ø§Ø­Ø¸ØªÙŠ: {c.notes}</p>}
+                    <h3>⚖️ المحامي: أ. {c.lawyer_name}</h3>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>📅 الموعد: {new Date(c.date).toLocaleString('ar-EG')}</p>
+                    {c.notes && <p style={{ marginTop: '5px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>📝 ملاحظتي: {c.notes}</p>}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
                     <span className={`badge ${c.status === 'accepted' ? 'badge-success' : c.status === 'completed' ? 'badge-success' : c.status === 'pending' ? 'badge-warning' : 'badge-danger'}`}>
-                      {c.status === 'accepted' ? 'ØªÙ… Ø§Ù„Ù‚Ø¨ÙˆÙ„' : c.status === 'pending' ? 'Ù‚ÙŠØ¯ Ø§Ù„Ù…Ø±Ø§Ø¬Ø¹Ø©' : c.status === 'completed' ? 'Ù…Ù†ØªÙ‡ÙŠØ©' : 'Ù…Ø±ÙÙˆØ¶Ø©'}
+                      {c.status === 'accepted' ? 'تم القبول' : c.status === 'pending' ? 'قيد المراجعة' : c.status === 'completed' ? 'منتهية' : 'مرفوضة'}
                     </span>
                     {(c.status === 'accepted' || c.status === 'completed') && (
                       <button 
@@ -862,49 +887,49 @@ export default function ClientDashboard({ token, user, onLogout }) {
                           setActiveTab('virtual-session');
                         }}
                       >
-                        ðŸŽ¥ Ø¯Ø®ÙˆÙ„ ØºØ±ÙØ© Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø©
+                        🎥 دخول غرفة الاستشارة
                       </button>
                     )}
                   </div>
                 </div>
               ))}
-              {consultations.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>Ù„Ù… ØªÙ‚Ù… Ø¨Ø·Ù„Ø¨ Ø§Ø³ØªØ´Ø§Ø±Ø§Øª Ø¨Ø¹Ø¯.</p>}
+              {consultations.length === 0 && <p style={{ color: 'var(--text-secondary)' }}>لم تقم بطلب استشارات بعد.</p>}
             </div>
           </div>
         )}
 
-        {/* 4. Ø§Ù„ÙÙˆØ§ØªÙŠØ± ÙˆØ§Ù„Ù…Ø¯ÙÙˆØ¹Ø§Øª */}
+        {/* 4. الفواتير والمدفوعات */}
         {activeTab === 'billing' && !selectedCase && (
           <div>
-            <h1>Ø§Ù„ÙÙˆØ§ØªÙŠØ± ÙˆØ§Ù„Ù…Ø·Ø§Ù„Ø¨Ø§Øª Ø§Ù„Ù…Ø§Ù„ÙŠØ©</h1>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>ÙŠÙ…ÙƒÙ†Ùƒ Ù…Ø±Ø§Ø¬Ø¹Ø© Ø¬Ù…ÙŠØ¹ Ø§Ù„ÙÙˆØ§ØªÙŠØ± Ø§Ù„Ù…Ø³ØªØ­Ù‚Ø© ÙˆØ³Ø¯Ø§Ø¯Ù‡Ø§ Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠØ§Ù‹ ÙˆØªÙˆÙ„ÙŠØ¯ Ø³Ù†Ø¯Ø§Øª Ø§Ù„Ù‚Ø¨Ø¶ Ø§Ù„Ù…ÙˆØ«Ù‚Ø©.</p>
+            <h1>الفواتير والمطالبات المالية</h1>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>يمكنك مراجعة جميع الفواتير المستحقة وسدادها إلكترونياً وتوليد سندات القبض الموثقة.</p>
 
             <div className="glass-panel" style={{ padding: '24px' }}>
-              <h3>Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„ÙÙˆØ§ØªÙŠØ± Ø§Ù„Ù…Ø³ØªØ­Ù‚Ø© ÙˆØ§Ù„Ù…Ø¯ÙÙˆØ¹Ø©</h3>
+              <h3>قائمة الفواتير المستحقة والمدفوعة</h3>
               <div style={{ overflowX: 'auto', marginTop: '15px' }}>
                 <table className="invoice-table">
                   <thead>
                     <tr>
-                      <th>Ø§Ù„Ù‚Ø¶ÙŠØ©</th>
-                      <th>Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ø·Ù„ÙˆØ¨</th>
-                      <th>Ø§Ù„ØªÙØ§ØµÙŠÙ„</th>
-                      <th>ØªØ§Ø±ÙŠØ® Ø§Ù„Ø§Ø³ØªØ­Ù‚Ø§Ù‚</th>
-                      <th>Ø§Ù„Ø­Ø§Ù„Ø©</th>
-                      <th>Ø§Ù„Ø¥Ø¬Ø±Ø§Ø¡</th>
+                      <th>القضية</th>
+                      <th>المبلغ المطلوب</th>
+                      <th>التفاصيل</th>
+                      <th>تاريخ الاستحقاق</th>
+                      <th>الحالة</th>
+                      <th>الإجراء</th>
                     </tr>
                   </thead>
                   <tbody>
                     {invoices.map(inv => (
                       <tr key={inv.id}>
                         <td>
-                          <strong>{inv.case_title || 'ØºÙŠØ± Ù…Ø­Ø¯Ø¯'}</strong>
+                          <strong>{inv.case_title || 'غير محدد'}</strong>
                         </td>
-                        <td style={{ fontWeight: 'bold', color: 'var(--accent-gold)' }}>{inv.amount.toLocaleString('ar-YE')} Ø±.ÙŠ</td>
+                        <td style={{ fontWeight: 'bold', color: 'var(--accent-gold)' }}>{inv.amount.toLocaleString('ar-YE')} ر.ي</td>
                         <td style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>{inv.description || '-'}</td>
                         <td>{new Date(inv.due_date).toLocaleDateString('ar-YE')}</td>
                         <td>
                           <span className={`badge ${inv.status === 'paid' ? 'badge-success' : 'badge-warning'}`}>
-                            {inv.status === 'paid' ? 'Ù…Ø¯ÙÙˆØ¹Ø©' : 'Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø§Ù„Ø³Ø¯Ø§Ø¯'}
+                            {inv.status === 'paid' ? 'مدفوعة' : 'بانتظار السداد'}
                           </span>
                         </td>
                         <td>
@@ -914,7 +939,7 @@ export default function ClientDashboard({ token, user, onLogout }) {
                               style={{ padding: '6px 12px', fontSize: '0.85rem' }} 
                               onClick={() => { setSelectedInvoice(inv); setShowPayModal(true); }}
                             >
-                              ðŸ’³ Ø³Ø¯Ø§Ø¯ Ø§Ù„Ø¢Ù†
+                              💳 سداد الآن
                             </button>
                           ) : (
                             <button 
@@ -922,7 +947,7 @@ export default function ClientDashboard({ token, user, onLogout }) {
                               style={{ padding: '6px 12px', fontSize: '0.85rem', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }} 
                               onClick={() => { setReceiptInvoice(inv); setShowReceiptModal(true); }}
                             >
-                              ðŸ“„ Ø³Ù†Ø¯ Ø§Ù„Ù‚Ø¨Ø¶
+                              📄 سند القبض
                             </button>
                           )}
                         </td>
@@ -930,7 +955,7 @@ export default function ClientDashboard({ token, user, onLogout }) {
                     ))}
                     {invoices.length === 0 && (
                       <tr>
-                        <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px' }}>Ù„Ø§ ØªÙˆØ¬Ø¯ Ø£ÙŠ ÙÙˆØ§ØªÙŠØ± Ù…Ø³Ø¬Ù„Ø© Ø¨Ø§Ø³Ù…Ùƒ Ø­Ø§Ù„ÙŠØ§Ù‹.</td>
+                        <td colSpan="6" style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px' }}>لا توجد أي فواتير مسجلة باسمك حالياً.</td>
                       </tr>
                     )}
                   </tbody>
@@ -940,26 +965,26 @@ export default function ClientDashboard({ token, user, onLogout }) {
           </div>
         )}
 
-        {/* 5. Ø§Ù„Ù…Ø³Ø§Ø¹Ø¯ Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠ Ø§Ù„Ø°ÙƒÙŠ */}
+        {/* 5. المساعد القانوني الذكي */}
         {activeTab === 'ai' && !selectedCase && (
           <div className="ai-assistant-container">
-            <h1>ðŸ§  Ø§Ù„Ù…Ø³Ø§Ø¹Ø¯ Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠ Ø§Ù„Ø°ÙƒÙŠ (Ø§Ù„ØªØ´Ø±ÙŠØ¹ Ø§Ù„ÙŠÙ…Ù†ÙŠ)</h1>
+            <h1>🧠 المساعد القانوني الذكي (التشريع اليمني)</h1>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '15px' }}>
-              Ø§Ø³Ø£Ù„ Ø§Ù„Ù…Ø³Ø§Ø¹Ø¯ Ø§Ù„Ø°ÙƒÙŠ Ø­ÙˆÙ„ Ø§Ù„Ù‚ÙˆØ§Ù†ÙŠÙ† Ø§Ù„ØªØ¬Ø§Ø±ÙŠØ© ÙˆØ§Ù„Ù…Ø¯Ù†ÙŠØ© ÙˆÙ‚ÙˆØ§Ù†ÙŠÙ† Ø§Ù„Ø£Ø­ÙˆØ§Ù„ Ø§Ù„Ø´Ø®ØµÙŠØ© ÙÙŠ Ø§Ù„Ø¬Ù…Ù‡ÙˆØ±ÙŠØ© Ø§Ù„ÙŠÙ…Ù†ÙŠØ©.
+              اسأل المساعد الذكي حول القوانين التجارية والمدنية وقوانين الأحوال الشخصية في الجمهورية اليمنية.
             </p>
             
             <div className="ai-chat-box" id="ai-chat-box">
               {aiHistory.map((msg, idx) => (
                 <div key={msg.id || idx} className={`ai-bubble ${msg.role}`}>
                   <p style={{ fontWeight: 'bold', color: 'var(--accent-gold)', fontSize: '0.8rem', marginBottom: '4px' }}>
-                    {msg.role === 'user' ? 'ðŸ‘¤ Ø£Ù†Øª' : 'ðŸ§  Ù…Ø³ØªØ´Ø§Ø± Ø£Ø±ÙˆÙ‰ Ø§Ù„Ø°ÙƒÙŠ'}
+                    {msg.role === 'user' ? '👤 أنت' : '🧠 مستشار أروى الذكي'}
                   </p>
                   <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{msg.content}</p>
                 </div>
               ))}
               {aiLoading && (
                 <div className="typing-indicator">
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginRight: '6px' }}>Ø£Ø±ÙˆÙ‰ ØªÙÙƒØ±</span>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginRight: '6px' }}>أروى تفكر</span>
                   <div className="typing-dot"></div>
                   <div className="typing-dot"></div>
                   <div className="typing-dot"></div>
@@ -967,10 +992,10 @@ export default function ClientDashboard({ token, user, onLogout }) {
               )}
               {aiHistory.length === 0 && !aiLoading && (
                 <div style={{ textAlign: 'center', margin: 'auto', color: 'var(--text-secondary)', maxWidth: '400px' }}>
-                  <span style={{ fontSize: '3rem' }}>ðŸ§ </span>
-                  <h3>Ø§Ø³Ø£Ù„ Ø¹Ù† Ø§Ù„Ù‚ÙˆØ§Ù†ÙŠÙ† Ø§Ù„ÙŠÙ…Ù†ÙŠØ©</h3>
+                  <span style={{ fontSize: '3rem' }}>🧠</span>
+                  <h3>اسأل عن القوانين اليمنية</h3>
                   <p style={{ fontSize: '0.85rem', marginTop: '8px' }}>
-                    Ø§ÙƒØªØ¨ Ø³Ø¤Ø§Ù„Ùƒ Ø¨Ø§Ù„Ø£Ø³ÙÙ„ Ù…Ø«Ù„ "Ù…Ø§ Ù‡ÙŠ Ø´Ø±ÙˆØ· ØªØ£Ø³ÙŠØ³ Ø´Ø±ÙƒØ© ØªØ¶Ø§Ù…Ù†ØŸ" Ø£Ùˆ "Ù…Ø§ Ø´Ø±ÙˆØ· Ø·Ø±Ø¯ Ø§Ù„Ù…Ø³ØªØ£Ø¬Ø± ÙÙŠ Ø§Ù„Ù‚Ø§Ù†ÙˆÙ† Ø§Ù„ÙŠÙ…Ù†ÙŠØŸ"
+                    اكتب سؤالك بالأسفل مثل "ما هي شروط تأسيس شركة تضامن؟" أو "ما شروط طرد المستأجر في القانون اليمني؟"
                   </p>
                 </div>
               )}
@@ -982,23 +1007,23 @@ export default function ClientDashboard({ token, user, onLogout }) {
                 value={aiQuery} 
                 onChange={(e) => setAiQuery(e.target.value)} 
                 className="form-input" 
-                placeholder="Ø§ÙƒØªØ¨ Ø§Ø³ØªØ´Ø§Ø±ØªÙƒ Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠØ© Ù‡Ù†Ø§..."
+                placeholder="اكتب استشارتك القانونية هنا..."
                 style={{ flex: 1 }}
                 required 
               />
               <button type="submit" className="btn btn-primary" disabled={aiLoading}>
-                {aiLoading ? 'Ø¬Ø§Ø±ÙŠ Ø§Ù„Ø¥Ø±Ø³Ø§Ù„...' : 'Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø§Ø³ØªÙØ³Ø§Ø± âš¡'}
+                {aiLoading ? 'جاري الإرسال...' : 'إرسال الاستفسار ⚡'}
               </button>
             </form>
           </div>
         )}
 
-        {/* 6. Ø§Ù„Ù…ÙƒØªØ¨Ø© Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠØ© */}
+        {/* 6. المكتبة القانونية */}
         {activeTab === 'laws' && !selectedCase && (
           <div className="laws-library-container">
-            <h1>âš–ï¸ Ù…ÙƒØªØ¨Ø© Ø§Ù„Ù‚ÙˆØ§Ù†ÙŠÙ† ÙˆØ§Ù„ØªØ´Ø±ÙŠØ¹Ø§Øª Ø§Ù„ÙŠÙ…Ù†ÙŠØ©</h1>
+            <h1>⚖️ مكتبة القوانين والتشريعات اليمنية</h1>
             <p style={{ color: 'var(--text-secondary)', marginBottom: '20px' }}>
-              ØªØµÙØ­ ÙˆØ§Ø¨Ø­Ø« ÙÙŠ Ø§Ù„Ù‚ÙˆØ§Ù†ÙŠÙ† Ø§Ù„Ù…Ø¯Ù†ÙŠØ© ÙˆØ§Ù„ØªØ¬Ø§Ø±ÙŠØ© ÙˆØ§Ù„Ø¬Ù†Ø§Ø¦ÙŠØ© Ø§Ù„Ù…Ø¹Ù…ÙˆÙ„ Ø¨Ù‡Ø§ ÙÙŠ Ø§Ù„Ø¬Ù…Ù‡ÙˆØ±ÙŠØ© Ø§Ù„ÙŠÙ…Ù†ÙŠØ©.
+              تصفح وابحث في القوانين المدنية والتجارية والجنائية المعمول بها في الجمهورية اليمنية.
             </p>
             
             <div style={{ display: 'flex', gap: '15px', marginBottom: '25px' }}>
@@ -1007,7 +1032,7 @@ export default function ClientDashboard({ token, user, onLogout }) {
                 value={lawSearchQuery} 
                 onChange={(e) => setLawSearchQuery(e.target.value)} 
                 className="form-input" 
-                placeholder="Ø§Ø¨Ø­Ø« Ø¨Ø±Ù‚Ù… Ø§Ù„Ù…Ø§Ø¯Ø© Ø£Ùˆ ÙƒÙ„Ù…Ø© Ù…ÙØªØ§Ø­ÙŠØ© (Ù…Ø«Ù„: Ø¥ÙŠØ¬Ø§Ø±ØŒ ØªØ¶Ø§Ù…Ù†ØŒ Ø¹Ù‚ÙˆØ¨Ø©)..." 
+                placeholder="ابحث برقم المادة أو كلمة مفتاحية (مثل: إيجار، تضامن، عقوبة)..." 
                 style={{ flex: 2 }}
               />
               <select 
@@ -1016,11 +1041,11 @@ export default function ClientDashboard({ token, user, onLogout }) {
                 className="form-input" 
                 style={{ flex: 1 }}
               >
-                <option value="">ÙƒÙ„ Ø§Ù„Ù‚ÙˆØ§Ù†ÙŠÙ†</option>
-                <option value="Ø§Ù„Ù‚Ø§Ù†ÙˆÙ† Ø§Ù„Ù…Ø¯Ù†ÙŠ Ø§Ù„ÙŠÙ…Ù†ÙŠ">Ø§Ù„Ù‚Ø§Ù†ÙˆÙ† Ø§Ù„Ù…Ø¯Ù†ÙŠ Ø§Ù„ÙŠÙ…Ù†ÙŠ</option>
-                <option value="Ø§Ù„Ù‚Ø§Ù†ÙˆÙ† Ø§Ù„ØªØ¬Ø§Ø±ÙŠ Ø§Ù„ÙŠÙ…Ù†ÙŠ">Ø§Ù„Ù‚Ø§Ù†ÙˆÙ† Ø§Ù„ØªØ¬Ø§Ø±ÙŠ Ø§Ù„ÙŠÙ…Ù†ÙŠ</option>
-                <option value="Ù‚Ø§Ù†ÙˆÙ† Ø§Ù„Ø¹Ù‚ÙˆØ¨Ø§Øª Ø§Ù„ÙŠÙ…Ù†ÙŠ">Ù‚Ø§Ù†ÙˆÙ† Ø§Ù„Ø¹Ù‚ÙˆØ¨Ø§Øª Ø§Ù„ÙŠÙ…Ù†ÙŠ</option>
-                <option value="Ù‚Ø§Ù†ÙˆÙ† Ø§Ù„Ø£Ø­ÙˆØ§Ù„ Ø§Ù„Ø´Ø®ØµÙŠØ© Ø§Ù„ÙŠÙ…Ù†ÙŠ">Ù‚Ø§Ù†ÙˆÙ† Ø§Ù„Ø£Ø­ÙˆØ§Ù„ Ø§Ù„Ø´Ø®ØµÙŠØ© Ø§Ù„ÙŠÙ…Ù†ÙŠ</option>
+                <option value="">كل القوانين</option>
+                <option value="القانون المدني اليمني">القانون المدني اليمني</option>
+                <option value="القانون التجاري اليمني">القانون التجاري اليمني</option>
+                <option value="قانون العقوبات اليمني">قانون العقوبات اليمني</option>
+                <option value="قانون الأحوال الشخصية اليمني">قانون الأحوال الشخصية اليمني</option>
               </select>
             </div>
 
@@ -1046,19 +1071,19 @@ export default function ClientDashboard({ token, user, onLogout }) {
               ))}
               {lawsList.length === 0 && (
                 <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
-                  <h3>Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…ÙˆØ§Ø¯ ØªØ·Ø§Ø¨Ù‚ Ø¨Ø­Ø«Ùƒ Ø­Ø§Ù„ÙŠØ§Ù‹</h3>
-                  <p style={{ fontSize: '0.9rem', marginTop: '5px' }}>Ø¬Ø±Ø¨ ÙƒØªØ§Ø¨Ø© ÙƒÙ„Ù…Ø§Øª Ù…Ø«Ù„ "Ø¥ÙŠØ¬Ø§Ø±" Ø£Ùˆ "Ø´ÙŠÙƒ" Ø£Ùˆ Ø§Ø®ØªØ± Ù‚Ø§Ù†ÙˆÙ†Ø§Ù‹ Ù…Ø­Ø¯Ø¯Ø§Ù‹ Ù„Ù„ØªØµÙØ­.</p>
+                  <h3>لا توجد مواد تطابق بحثك حالياً</h3>
+                  <p style={{ fontSize: '0.9rem', marginTop: '5px' }}>جرب كتابة كلمات مثل "إيجار" أو "شيك" أو اختر قانوناً محدداً للتصفح.</p>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* ØºØ±ÙØ© Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø© Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠØ© */}
+        {/* غرفة الاستشارة الافتراضية */}
         {activeTab === 'virtual-session' && activeSessionConsultation && (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <h2>ðŸŽ¥ ØºØ±ÙØ© Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø© Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠØ© Ø§Ù„Ù†Ø´Ø·Ø©</h2>
+              <h2>🎥 غرفة الاستشارة الافتراضية النشطة</h2>
               <button 
                 className="btn btn-secondary" 
                 onClick={() => {
@@ -1066,12 +1091,12 @@ export default function ClientDashboard({ token, user, onLogout }) {
                   setActiveSessionConsultation(null);
                 }}
               >
-                ðŸ”™ Ù…ØºØ§Ø¯Ø±Ø© Ø§Ù„ØºØ±ÙØ© ÙˆØ§Ù„Ø¹ÙˆØ¯Ø©
+                🔙 مغادرة الغرفة والعودة
               </button>
             </div>
             
             <div className="virtual-call-grid">
-              {/* Ø´Ø§Ø´Ø§Øª Ø§Ù„ÙÙŠØ¯ÙŠÙˆ ÙˆØ§Ù„Ù…Ø¤Ù‚Øª */}
+              {/* شاشات الفيديو والمؤقت */}
               <div className="video-feeds-container">
                 <div className="session-timer-box">
                   المتبقي من وقت الاستشارة: {formatTimer(sessionTimer)}
@@ -1093,14 +1118,14 @@ export default function ClientDashboard({ token, user, onLogout }) {
               {/* المفكرة المشتركة */}
               <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }} id="printable-recommendations-card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <h3>ðŸ“ Ù…ÙÙƒØ±Ø© Ø§Ù„ØªÙˆØµÙŠØ§Øª ÙˆØ§Ù„Ù…Ù„Ø§Ø­Ø¸Ø§Øª Ø§Ù„Ù…Ø´ØªØ±ÙƒØ©</h3>
-                  <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }} onClick={() => window.print()}>
-                    ðŸ–¨ï¸ Ø·Ø¨Ø§Ø¹Ø© Ø§Ù„Ù…Ù„Ø§Ø­Ø¸Ø§Øª
+                  <h3>📝 مفكرة التوصيات والملاحظات المشتركة</h3>
+                  <button className="btn btn-secondary" style={{ padding: '4px 8px', fontSize: '0.75rem', borderColor: 'var(--accent-gold)', color: 'var(--accent-gold)' }} onClick={handlePrintSessionNotes}>
+                    🖨️ طباعة الملاحظات
                   </button>
                 </div>
                 
                 <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  Ø§Ù„Ù…Ù„Ø§Ø­Ø¸Ø§Øª Ø§Ù„Ù…Ø¯ÙˆÙ†Ø© Ø¨Ø§Ù„Ø£Ø³ÙÙ„ ÙŠØªÙ… Ù…Ø´Ø§Ø±ÙƒØªÙ‡Ø§ ÙˆØ­ÙØ¸Ù‡Ø§ Ø¨ÙŠÙ†Ùƒ ÙˆØ¨ÙŠÙ† Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ Ù„Ø­Ø¸ÙŠØ§Ù‹.
+                  الملاحظات المدونة بالأسفل يتم مشاركتها وحفظها بينك وبين المحامي لحظياً.
                 </p>
                 
                 <textarea 
@@ -1108,47 +1133,47 @@ export default function ClientDashboard({ token, user, onLogout }) {
                   onChange={(e) => setSharedSessionNotes(e.target.value)}
                   className="form-input" 
                   rows="10" 
-                  placeholder="ÙŠÙ…ÙƒÙ†Ùƒ ÙƒØªØ§Ø¨Ø© Ø§Ù„Ø§ØªÙØ§Ù‚ÙŠØ§ØªØŒ Ø§Ù„Ø¨Ù†ÙˆØ¯ ÙˆØ§Ù„ØªÙˆØµÙŠØ§Øª Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠØ© Ø§Ù„Ù…Ø´ØªØ±ÙƒØ© Ù‡Ù†Ø§..."
+                  placeholder="يمكنك كتابة الاتفاقيات، البنود والتوصيات القانونية المشتركة هنا..."
                   style={{ flex: 1, fontFamily: 'inherit', resize: 'none', lineHeight: '1.6' }}
                 ></textarea>
                 
                 <button className="btn btn-primary" onClick={handleUpdateSessionNotes} style={{ width: '100%' }}>
-                  ðŸ’¾ Ø­ÙØ¸ ÙˆØªØ­Ø¯ÙŠØ« Ø§Ù„Ù…Ù„Ø§Ø­Ø¸Ø§Øª Ø§Ù„Ù…Ø´ØªØ±ÙƒØ©
+                  💾 حفظ وتحديث الملاحظات المشتركة
                 </button>
               </div>
             </div>
 
-            {/* Ù†Ø³Ø®Ø© Ø§Ù„Ø·Ø¨Ø§Ø¹Ø© Ø§Ù„Ù…Ø®ÙÙŠØ© */}
+            {/* نسخة الطباعة المخفية */}
             <div className="printable-session-recommendations" style={{ display: 'none' }}>
               <div style={{ textAlign: 'center', borderBottom: '2px solid #c5a059', paddingBottom: '15px', marginBottom: '20px' }}>
-                <h2>Ù…Ù†ØµØ© Ø£Ø±ÙˆÙ‰ Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠØ© Ø§Ù„Ø±Ù‚Ù…ÙŠØ© âš–ï¸</h2>
-                <h3>ØªÙˆØµÙŠØ§Øª ÙˆÙ…Ù„Ø§Ø­Ø¸Ø§Øª Ø¬Ù„Ø³Ø© Ø§Ù„Ø§Ø³ØªØ´Ø§Ø±Ø© Ø§Ù„Ø§ÙØªØ±Ø§Ø¶ÙŠØ©</h3>
+                <h2>منصة أروى القانونية الرقمية ⚖️</h2>
+                <h3>توصيات وملاحظات جلسة الاستشارة الافتراضية</h3>
               </div>
-              <p><strong>ØªØ§Ø±ÙŠØ® Ø§Ù„Ø¬Ù„Ø³Ø©:</strong> {new Date(activeSessionConsultation.date).toLocaleString('ar-YE')}</p>
-              <p><strong>Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ Ø§Ù„ÙˆÙƒÙŠÙ„:</strong> Ø£. {activeSessionConsultation.lawyer_name}</p>
-              <p><strong>Ø§Ù„Ù…ÙˆÙƒÙ„:</strong> {user.full_name}</p>
+              <p><strong>تاريخ الجلسة:</strong> {new Date(activeSessionConsultation.date).toLocaleString('ar-YE')}</p>
+              <p><strong>المحامي الوكيل:</strong> أ. {activeSessionConsultation.lawyer_name}</p>
+              <p><strong>الموكل:</strong> {user.full_name}</p>
               <hr style={{ border: '1px solid #eee', margin: '20px 0' }} />
-              <h4>ðŸ“‹ Ø§Ù„Ù…Ù„Ø§Ø­Ø¸Ø§Øª ÙˆØ§Ù„ØªÙˆØµÙŠØ§Øª Ø§Ù„Ù…ØªÙÙ‚ Ø¹Ù„ÙŠÙ‡Ø§:</h4>
+              <h4>📋 الملاحظات والتوصيات المتفق عليها:</h4>
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', background: '#f9f9f9', padding: '20px', borderRadius: '8px', border: '1px solid #ddd' }}>
-                {sharedSessionNotes || 'Ù„Ø§ ØªÙˆØ¬Ø¯ Ù…Ù„Ø§Ø­Ø¸Ø§Øª Ù…Ø¯ÙˆÙ†Ø©.'}
+                {sharedSessionNotes || 'لا توجد ملاحظات مدونة.'}
               </div>
               <div style={{ marginTop: '50px', textAlign: 'left', fontSize: '0.9rem', color: '#666' }}>
-                Ø³Ù†Ø¯ Ù…ÙˆØ«Ù‚ Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠØ§Ù‹ ÙˆØµØ§Ø¯Ø± Ø¹Ù† Ù…Ù†ØµØ© Ø£Ø±ÙˆÙ‰
+                سند موثق إلكترونياً وصادر عن منصة أروى
               </div>
             </div>
           </div>
         )}
 
-        {/* Ù…ÙˆØ¯Ø§Ù„ ØªØ­Ù„ÙŠÙ„ Ø§Ù„ÙˆØ«ÙŠÙ‚Ø© Ø¨Ø§Ù„Ø°ÙƒØ§Ø¡ Ø§Ù„Ø§ØµØ·Ù†Ø§Ø¹ÙŠ */}
+        {/* مودال تحليل الوثيقة بالذكاء الاصطناعي */}
         {showAnalysisModal && selectedDocForAnalysis && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div className="glass-panel" style={{ padding: '30px', width: '600px', background: 'var(--bg-secondary)', maxHeight: '90vh', overflowY: 'auto' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <h2>ðŸ§  Ø§Ù„ØªØ­Ù„ÙŠÙ„ Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠ Ø§Ù„Ø°ÙƒÙŠ Ù„Ù„ÙˆØ«ÙŠÙ‚Ø©</h2>
-                <button className="btn" style={{ padding: '4px 8px', background: 'transparent', color: 'var(--text-secondary)' }} onClick={() => { setShowAnalysisModal(false); setSelectedDocForAnalysis(null); }}>âŒ</button>
+                <h2>🧠 التحليل القانوني الذكي للوثيقة</h2>
+                <button className="btn" style={{ padding: '4px 8px', background: 'transparent', color: 'var(--text-secondary)' }} onClick={() => { setShowAnalysisModal(false); setSelectedDocForAnalysis(null); }}>❌</button>
               </div>
               <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '20px' }}>
-                Ø§Ø³Ù… Ø§Ù„Ù…Ù„Ù: <strong>{selectedDocForAnalysis.file_name}</strong>
+                اسم الملف: <strong>{selectedDocForAnalysis.file_name}</strong>
               </p>
 
               {selectedDocForAnalysis.ai_analysis ? (
@@ -1158,22 +1183,22 @@ export default function ClientDashboard({ token, user, onLogout }) {
               ) : (
                 <form onSubmit={handleAnalyzeDocument} style={{ marginTop: '20px' }}>
                   <div className="form-group">
-                    <label className="form-label">Ø­Ø¯Ø¯ Ù†ÙˆØ¹ Ø§Ù„ÙˆØ«ÙŠÙ‚Ø© Ù„ØªØ®ØµÙŠØµ Ø¹Ù…Ù„ÙŠØ© Ø§Ù„ØªØ­Ù„ÙŠÙ„ Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠ:</label>
+                    <label className="form-label">حدد نوع الوثيقة لتخصيص عملية التحليل القانوني:</label>
                     <select 
                       value={selectedDocType} 
                       onChange={(e) => setSelectedDocType(e.target.value)} 
                       className="form-input"
                     >
-                      <option value="lease">Ø¹Ù‚Ø¯ Ø¥ÙŠØ¬Ø§Ø± Ø¹Ù‚Ø§Ø± (Ø³ÙƒÙ†ÙŠ / ØªØ¬Ø§Ø±ÙŠ)</option>
-                      <option value="commercial">Ø¹Ù‚Ø¯ Ø´Ø±Ø§ÙƒØ© Ø£Ùˆ Ø§ØªÙØ§Ù‚ÙŠØ© ØªØ¬Ø§Ø±ÙŠØ©</option>
-                      <option value="complaint">Ø¹Ø±ÙŠØ¶Ø© Ø¯Ø¹ÙˆÙ‰ Ø£Ùˆ Ù…Ø°ÙƒØ±Ø© Ù‚Ø§Ù†ÙˆÙ†ÙŠØ©</option>
+                      <option value="lease">عقد إيجار عقار (سكني / تجاري)</option>
+                      <option value="commercial">عقد شراكة أو اتفاقية تجارية</option>
+                      <option value="complaint">عريضة دعوى أو مذكرة قانونية</option>
                     </select>
                   </div>
                   
                   {analyzingDocId === selectedDocForAnalysis.id ? (
                     <div style={{ textAlign: 'center', padding: '30px' }}>
                       <div className="typing-indicator" style={{ display: 'inline-flex', alignSelf: 'center' }}>
-                        <span style={{ fontSize: '0.9rem', color: 'var(--accent-gold)', marginRight: '8px' }}>Ø¬Ø§Ø±ÙŠ ÙØ­Øµ ÙˆØªÙ„Ø®ÙŠØµ Ø§Ù„Ø¨Ù†ÙˆØ¯ ÙˆØªØ­Ù„ÙŠÙ„ Ø§Ù„Ù…Ø®Ø§Ø·Ø±...</span>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--accent-gold)', marginRight: '8px' }}>جاري فحص وتلخيص البنود وتحليل المخاطر...</span>
                         <div className="typing-dot"></div>
                         <div className="typing-dot"></div>
                         <div className="typing-dot"></div>
@@ -1181,150 +1206,150 @@ export default function ClientDashboard({ token, user, onLogout }) {
                     </div>
                   ) : (
                     <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }}>
-                      âš¡ ØªØ´ØºÙŠÙ„ ÙØ­Øµ Ø§Ù„Ø°ÙƒØ§Ø¡ Ø§Ù„Ø§ØµØ·Ù†Ø§Ø¹ÙŠ
+                      ⚡ تشغيل فحص الذكاء الاصطناعي
                     </button>
                   )}
                 </form>
               )}
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setShowAnalysisModal(false); setSelectedDocForAnalysis(null); }}>Ø¥ØºÙ„Ø§Ù‚</button>
+                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => { setShowAnalysisModal(false); setSelectedDocForAnalysis(null); }}>إغلاق</button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Ù…ÙˆØ¯Ø§Ù„ Ø­Ø¬Ø² Ù…ÙˆØ¹Ø¯ Ø§Ø³ØªØ´Ø§Ø±Ø© */}
+        {/* مودال حجز موعد استشارة */}
         {showBookModal && selectedLawyer && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div className="glass-panel" style={{ padding: '30px', width: '450px', background: 'var(--bg-secondary)' }}>
-              <h2>Ø·Ù„Ø¨ Ø­Ø¬Ø² Ù…ÙˆØ¹Ø¯ Ù…Ø¹ Ø£. {selectedLawyer.full_name}</h2>
+              <h2>طلب حجز موعد مع أ. {selectedLawyer.full_name}</h2>
               <form onSubmit={handleBookConsultation} style={{ marginTop: '20px' }}>
                 <div className="form-group">
-                  <label className="form-label">Ø§Ù„ØªØ§Ø±ÙŠØ® ÙˆØ§Ù„ÙˆÙ‚Øª Ø§Ù„Ù…Ù‚ØªØ±Ø­ÙŠÙ†</label>
+                  <label className="form-label">التاريخ والوقت المقترحين</label>
                   <input type="datetime-local" value={bookDetails.date} onChange={(e) => setBookDetails({ ...bookDetails, date: e.target.value })} className="form-input" required />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">ØªÙØ§ØµÙŠÙ„ Ø§Ù„Ù…Ø´ÙƒÙ„Ø© / Ù…Ù„Ø§Ø­Ø¸Ø© Ù„Ù„Ù…Ø­Ø§Ù…ÙŠ</label>
-                  <textarea value={bookDetails.notes} onChange={(e) => setBookDetails({ ...bookDetails, notes: e.target.value })} className="form-input" rows="4" placeholder="ÙŠØ±Ø¬Ù‰ ÙƒØªØ§Ø¨Ø© Ù„Ù…Ø­Ø© Ø³Ø±ÙŠØ¹Ø© Ø¹Ù† Ø§Ù„Ù…Ø´ÙƒÙ„Ø© Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠØ© Ù„Ù…Ø³Ø§Ø¹Ø¯Ø© Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ ÙÙŠ Ù…Ø±Ø§Ø¬Ø¹ØªÙ‡Ø§..." required></textarea>
+                  <label className="form-label">تفاصيل المشكلة / ملاحظة للمحامي</label>
+                  <textarea value={bookDetails.notes} onChange={(e) => setBookDetails({ ...bookDetails, notes: e.target.value })} className="form-input" rows="4" placeholder="يرجى كتابة لمحة سريعة عن المشكلة القانونية لمساعدة المحامي في مراجعتها..." required></textarea>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button type="submit" className="btn btn-primary">Ø¥Ø±Ø³Ø§Ù„ Ø§Ù„Ø·Ù„Ø¨</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => { setShowBookModal(false); setSelectedLawyer(null); }}>Ø¥Ù„ØºØ§Ø¡</button>
+                  <button type="submit" className="btn btn-primary">إرسال الطلب</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => { setShowBookModal(false); setSelectedLawyer(null); }}>إلغاء</button>
                 </div>
               </form>
             </div>
           </div>
         )}
 
-        {/* Ù…ÙˆØ¯Ø§Ù„ Ø¨ÙˆØ§Ø¨Ø© Ø§Ù„Ø¯ÙØ¹ ÙˆÙ…Ø­Ø§ÙƒØ§Ø© Ø§Ù„Ø³Ø¯Ø§Ø¯ */}
+        {/* مودال بوابة الدفع ومحاكاة السداد */}
         {showPayModal && selectedInvoice && (
           <div style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
             <div className="glass-panel" style={{ padding: '30px', width: '500px', background: 'var(--bg-secondary)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-                <h2>Ø¨ÙˆØ§Ø¨Ø© Ø§Ù„Ø¯ÙØ¹ ÙˆØ³Ø¯Ø§Ø¯ Ø§Ù„ÙØ§ØªÙˆØ±Ø©</h2>
-                <button className="btn" style={{ padding: '4px 8px', background: 'transparent', color: 'var(--text-secondary)' }} onClick={() => { setShowPayModal(false); setSelectedInvoice(null); setPaymentMethod(''); }}>âŒ</button>
+                <h2>بوابة الدفع وسداد الفاتورة</h2>
+                <button className="btn" style={{ padding: '4px 8px', background: 'transparent', color: 'var(--text-secondary)' }} onClick={() => { setShowPayModal(false); setSelectedInvoice(null); setPaymentMethod(''); }}>❌</button>
               </div>
-              <p style={{ fontSize: '0.95rem', marginBottom: '20px' }}>Ø£Ù†Øª Ø¨ØµØ¯Ø¯ Ø³Ø¯Ø§Ø¯ ÙØ§ØªÙˆØ±Ø© Ø¨Ù‚ÙŠÙ…Ø© <strong style={{ color: 'var(--accent-gold)' }}>{selectedInvoice.amount.toLocaleString('ar-YE')} Ø±.ÙŠ</strong> Ø§Ù„Ø®Ø§ØµØ© Ø¨Ù‚Ø¶ÙŠØ© <strong style={{ color: 'var(--accent-gold)' }}>{selectedInvoice.case_title || 'ØºÙŠØ± Ù…Ø­Ø¯Ø¯'}</strong>.</p>
+              <p style={{ fontSize: '0.95rem', marginBottom: '20px' }}>أنت بصدد سداد فاتورة بقيمة <strong style={{ color: 'var(--accent-gold)' }}>{selectedInvoice.amount.toLocaleString('ar-YE')} ر.ي</strong> الخاصة بقضية <strong style={{ color: 'var(--accent-gold)' }}>{selectedInvoice.case_title || 'غير محدد'}</strong>.</p>
               
               <form onSubmit={handlePayInvoice}>
-                <label className="form-label">Ø§Ø®ØªØ± ÙˆØ³ÙŠÙ„Ø© Ø§Ù„Ø¯ÙØ¹ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ Ø§Ù„Ù…ÙØ¶Ù„Ø©:</label>
+                <label className="form-label">اختر وسيلة الدفع الإلكتروني المفضلة:</label>
                 <div className="payment-methods-grid">
                   <div className={`payment-method-card ${paymentMethod === 'kuraimi' ? 'selected' : ''}`} onClick={() => setPaymentMethod('kuraimi')}>
-                    <span className="payment-logo">ðŸ¦</span>
-                    <p style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Ù…Ø­ÙØ¸Ø© Ø§Ù„ÙƒØ±ÙŠÙ…ÙŠ</p>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Ø§Ù… ÙƒØ§Ø´ / M-Cash</span>
+                    <span className="payment-logo">🏦</span>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>محفظة الكريمي</p>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>ام كاش / M-Cash</span>
                   </div>
                   <div className={`payment-method-card ${paymentMethod === 'floosak' ? 'selected' : ''}`} onClick={() => setPaymentMethod('floosak')}>
-                    <span className="payment-logo">ðŸ“±</span>
-                    <p style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Ù…Ø­ÙØ¸Ø© ÙÙ„ÙˆØ³Ùƒ</p>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Ø§Ù„Ø®Ø¯Ù…Ø§Øª Ø§Ù„Ù…Ø§Ù„ÙŠØ©</span>
+                    <span className="payment-logo">📱</span>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>محفظة فلوسك</p>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>الخدمات المالية</span>
                   </div>
                   <div className={`payment-method-card ${paymentMethod === 'jawaly' ? 'selected' : ''}`} onClick={() => setPaymentMethod('jawaly')}>
-                    <span className="payment-logo">ðŸ’³</span>
-                    <p style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Ù…Ø­ÙØ¸Ø© Ø¬ÙˆØ§Ù„ÙŠ</p>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Ø¯ÙØ¹ Ø³Ø±ÙŠØ¹</span>
+                    <span className="payment-logo">💳</span>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>محفظة جوالي</p>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>دفع سريع</span>
                   </div>
                   <div className={`payment-method-card ${paymentMethod === 'mada' ? 'selected' : ''}`} onClick={() => setPaymentMethod('mada')}>
-                    <span className="payment-logo">ðŸ‡¸ðŸ‡¦</span>
-                    <p style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Ø¨Ø·Ø§Ù‚Ø© Ù…Ø¯Ù‰</p>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Ø§Ù„Ø´Ø¨ÙƒØ© Ø§Ù„Ù…Ø­Ù„ÙŠØ©</span>
+                    <span className="payment-logo">🇸🇦</span>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>بطاقة مدى</p>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>الشبكة المحلية</span>
                   </div>
                   <div className={`payment-method-card ${paymentMethod === 'visa' ? 'selected' : ''}`} onClick={() => setPaymentMethod('visa')}>
-                    <span className="payment-logo">ðŸŒ</span>
-                    <p style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>ÙÙŠØ²Ø§ / Ù…Ø§Ø³ØªØ±</p>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>Ø§Ù„Ø¯ÙØ¹ Ø§Ù„Ø¯ÙˆÙ„ÙŠ</span>
+                    <span className="payment-logo">🌐</span>
+                    <p style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>فيزا / ماستر</p>
+                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>الدفع الدولي</span>
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={!paymentMethod}>ØªØ£ÙƒÙŠØ¯ Ø§Ù„Ø¯ÙØ¹ ÙˆØ§Ù„Ø³Ø¯Ø§Ø¯</button>
-                  <button type="button" className="btn btn-secondary" onClick={() => { setShowPayModal(false); setSelectedInvoice(null); setPaymentMethod(''); }}>Ø¥Ù„ØºØ§Ø¡</button>
+                  <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={!paymentMethod}>تأكيد الدفع والسداد</button>
+                  <button type="button" className="btn btn-secondary" onClick={() => { setShowPayModal(false); setSelectedInvoice(null); setPaymentMethod(''); }}>إلغاء</button>
                 </div>
               </form>
             </div>
           </div>
         )}
 
-        {/* Ù…ÙˆØ¯Ø§Ù„ Ø³Ù†Ø¯ Ø§Ù„Ù‚Ø¨Ø¶ Ø§Ù„Ù…Ø§Ù„ÙŠ Ø§Ù„Ù…ÙˆØ«Ù‚ Ù„Ù„Ø·Ø¨Ø§Ø¹Ø© */}
+        {/* مودال سند القبض المالي الموثق للطباعة */}
         {showReceiptModal && receiptInvoice && (
           <div className="printable-receipt-modal" style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100, overflowY: 'auto', padding: '20px' }}>
             <div className="glass-panel receipt-container" style={{ width: '600px', background: 'var(--bg-secondary)', padding: '40px' }}>
               <div className="receipt-header">
-                <span style={{ fontSize: '2.5rem' }}>âš–ï¸</span>
-                <h1 className="receipt-title">Ø³Ù†Ø¯ Ù‚Ù€Ø¨Ù€Ø¶ Ù…Ù€Ø§Ù„Ù€ÙŠ</h1>
-                <p style={{ fontSize: '0.9rem', color: 'var(--accent-gold)', marginTop: '5px' }}>Ù…Ù†ØµØ© Ø£Ø±ÙˆÙ‰ Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠØ© Ø§Ù„Ø±Ù‚Ù…ÙŠØ©</p>
+                <span style={{ fontSize: '2.5rem' }}>⚖️</span>
+                <h1 className="receipt-title">سند قـبـض مـالـي</h1>
+                <p style={{ fontSize: '0.9rem', color: 'var(--accent-gold)', marginTop: '5px' }}>منصة أروى القانونية الرقمية</p>
               </div>
 
               <div className="receipt-grid">
                 <div className="receipt-row">
-                  <p className="receipt-label">Ø±Ù‚Ù… Ø§Ù„Ù…Ø¹Ø§Ù…Ù„Ø© (Ø§Ù„Ø¹Ù…Ù„ÙŠØ©)</p>
+                  <p className="receipt-label">رقم المعاملة (العملية)</p>
                   <p className="receipt-value" style={{ fontFamily: 'monospace' }}>{receiptInvoice.transaction_id || '-'}</p>
                 </div>
                 <div className="receipt-row">
-                  <p className="receipt-label">ØªØ§Ø±ÙŠØ® Ø§Ù„Ø³Ø¯Ø§Ø¯ ÙˆØ§Ù„ØªÙˆØ«ÙŠÙ‚</p>
+                  <p className="receipt-label">تاريخ السداد والتوثيق</p>
                   <p className="receipt-value">{receiptInvoice.paid_at ? new Date(receiptInvoice.paid_at).toLocaleString('ar-YE') : '-'}</p>
                 </div>
                 <div className="receipt-row">
-                  <p className="receipt-label">Ø§Ù„Ù…ÙˆÙƒÙ„ (Ø¯Ø§ÙØ¹ Ø§Ù„Ø³Ù†Ø¯)</p>
+                  <p className="receipt-label">الموكل (دافع السند)</p>
                   <p className="receipt-value">{receiptInvoice.client_name || user.full_name}</p>
                 </div>
                 <div className="receipt-row">
-                  <p className="receipt-label">Ø§Ù„ÙˆÙƒÙŠÙ„ Ø§Ù„Ù…Ø³ØªÙ„Ù… (Ø§Ù„Ù…Ø­Ø§Ù…ÙŠ)</p>
-                  <p className="receipt-value">Ù…Ù†ØµØ© Ø£Ø±ÙˆÙ‰ Ø§Ù„Ù‚Ø§Ù†ÙˆÙ†ÙŠØ© (Ù„ØµØ§Ù„Ø­ Ù…ÙƒØªØ¨ Ø§Ù„ÙˆÙƒÙŠÙ„)</p>
+                  <p className="receipt-label">الوكيل المستلم (المحامي)</p>
+                  <p className="receipt-value">منصة أروى القانونية (لصالح مكتب الوكيل)</p>
                 </div>
                 <div className="receipt-row" style={{ gridColumn: '1 / -1' }}>
-                  <p className="receipt-label">Ø§Ù„Ø¨ÙŠØ§Ù† / ØªÙØ§ØµÙŠÙ„ Ø§Ù„Ø¯ÙØ¹Ø©</p>
-                  <p className="receipt-value">{receiptInvoice.description || 'Ø£ØªØ¹Ø§Ø¨ ÙˆØ§Ø³ØªØ´Ø§Ø±Ø§Øª Ù‚Ø§Ù†ÙˆÙ†ÙŠØ©'}</p>
+                  <p className="receipt-label">البيان / تفاصيل الدفعة</p>
+                  <p className="receipt-value">{receiptInvoice.description || 'أتعاب واستشارات قانونية'}</p>
                 </div>
                 <div className="receipt-row" style={{ gridColumn: '1 / -1' }}>
-                  <p className="receipt-label">Ù…Ø±ØªØ¨Ø· Ø¨Ø§Ù„Ù‚Ø¶ÙŠØ©</p>
-                  <p className="receipt-value">ðŸ’¼ {receiptInvoice.case_title || 'ØºÙŠØ± Ù…Ø­Ø¯Ø¯'}</p>
+                  <p className="receipt-label">مرتبط بالقضية</p>
+                  <p className="receipt-value">💼 {receiptInvoice.case_title || 'غير محدد'}</p>
                 </div>
                 
                 <div className="receipt-amount-box">
-                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '5px' }}>Ø§Ù„Ù…Ø¨Ù„Øº Ø§Ù„Ù…Ù‚Ø¨ÙˆØ¶ Ø¨Ø§Ù„Ø±ÙŠØ§Ù„ Ø§Ù„ÙŠÙ…Ù†ÙŠ</span>
-                  {receiptInvoice.amount.toLocaleString('ar-YE')} Ø±ÙŠØ§Ù„ ÙŠÙ…Ù†ÙŠ ÙÙ‚Ø· Ù„Ø§ ØºÙŠØ±
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '5px' }}>المبلغ المقبوض بالريال اليمني</span>
+                  {receiptInvoice.amount.toLocaleString('ar-YE')} ريال يمني فقط لا غير
                 </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px' }}>
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ø­Ø§Ù„Ø© Ø§Ù„ØªÙˆØ«ÙŠÙ‚:</p>
-                  <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>âœ“ Ù…Ø¹ØªÙ…Ø¯ ÙˆÙ…Ø³Ø¯Ø¯ Ø¨Ø§Ù„ÙƒØ§Ù…Ù„</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>حالة التوثيق:</p>
+                  <p style={{ color: 'var(--success)', fontWeight: 'bold' }}>✓ معتمد ومسدد بالكامل</p>
                 </div>
                 <div className="gold-seal-container">
                   <div className="gold-seal">
-                    <span>Ù…Ù†ØµØ© Ø£Ø±ÙˆÙ‰</span>
-                    <span>Ø§Ù„Ù…ÙƒØªØ¨ Ø§Ù„Ø±Ù‚Ù…ÙŠ</span>
-                    <span className="gold-seal-text">Ù…ÙˆØ«Ù‚ Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠØ§Ù‹</span>
+                    <span>منصة أروى</span>
+                    <span>المكتب الرقمي</span>
+                    <span className="gold-seal-text">موثق إلكترونياً</span>
                   </div>
                 </div>
               </div>
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '30px' }} className="modal-actions-print">
-                <button className="btn btn-primary" onClick={() => window.print()} style={{ flex: 1 }}>ðŸ–¨ï¸ Ø·Ø¨Ø§Ø¹Ø© Ø§Ù„Ø³Ù†Ø¯</button>
-                <button className="btn btn-secondary" onClick={() => { setShowReceiptModal(false); setReceiptInvoice(null); }}>Ø¥ØºÙ„Ø§Ù‚ Ø§Ù„Ù†Ø§ÙØ°Ø©</button>
+                <button className="btn btn-primary" onClick={() => window.print()} style={{ flex: 1 }}>🖨️ طباعة السند</button>
+                <button className="btn btn-secondary" onClick={() => { setShowReceiptModal(false); setReceiptInvoice(null); }}>إغلاق النافذة</button>
               </div>
             </div>
           </div>

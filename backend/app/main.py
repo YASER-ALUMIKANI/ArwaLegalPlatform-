@@ -76,6 +76,14 @@ def send_ws_notification(user_id: str, payload: dict):
             loop
         )
 
+def send_consultation_room_update(consult_id: str, sender_id: str, payload: dict):
+    global loop
+    if loop and loop.is_running():
+        asyncio.run_coroutine_threadsafe(
+            session_manager.send_to_peers(consult_id, sender_id, payload),
+            loop
+        )
+
 def trigger_notifications(db: Session, user_id: str, title: str, content: str):
     """
     إرسال إشعارات ثلاثية القنوات وتخزينها في قاعدة البيانات:
@@ -1318,6 +1326,14 @@ def update_consultation_session_notes(
     consult.session_notes = notes_in.session_notes
     db.commit()
     db.refresh(consult)
+    send_consultation_room_update(
+        consult_id,
+        current_user.id,
+        {
+            "type": "session-notes-updated",
+            "session_notes": consult.session_notes or ""
+        }
+    )
     
     return {
         "id": consult.id,
